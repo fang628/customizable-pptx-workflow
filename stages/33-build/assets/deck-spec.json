@@ -1,0 +1,108 @@
+{
+  "meta": {
+    "title": "中文演示文稿起始示例",
+    "author": "",
+    "subject": "",
+    "company": "",
+    "language": "zh-CN",
+    "layout": "LAYOUT_WIDE"
+  },
+  "theme": {
+    "headFontFace": "Microsoft YaHei",
+    "bodyFontFace": "Microsoft YaHei",
+    "lang": "zh-CN"
+  },
+  "slides": [
+    {
+      "id": "S01",
+      "background": { "color": "F5F7F8" },
+      "notes": ["这是试构建示例，正式页面必须依据确认后的设计稿重新填写。"],
+      "elements": [
+        {
+          "id": "S01-BAND-01",
+          "type": "shape",
+          "shape": "rect",
+          "x": 0,
+          "y": 0,
+          "w": 0.22,
+          "h": 7.5,
+          "fill": { "color": "E84A3C" },
+          "line": { "color": "E84A3C", "transparency": 100 }
+        },
+        {
+          "id": "S01-KICKER-01",
+          "type": "text",
+          "text": "项目汇报 / 2026",
+          "x": 0.85,
+          "y": 0.65,
+          "w": 3.5,
+          "h": 0.3,
+          "fontFace": "Aptos",
+          "fontSize": 11,
+          "bold": true,
+          "color": "E84A3C",
+          "margin": 0,
+          "breakLine": false
+        },
+        {
+          "id": "S01-TITLE-01",
+          "type": "text",
+          "text": "在此填写已确认的汇报标题",
+          "x": 0.85,
+          "y": 1.35,
+          "w": 7.4,
+          "h": 1.45,
+          "fontFace": "Microsoft YaHei",
+          "fontSize": 32,
+          "bold": true,
+          "color": "18212B",
+          "margin": 0,
+          "fit": "shrink"
+        },
+        {
+          "id": "S01-SUBTITLE-01",
+          "type": "text",
+          "text": "原生文字与图形可编辑，照片作为独立对象保留。",
+          "x": 0.85,
+          "y": 3.1,
+          "w": 6.5,
+          "h": 0.8,
+          "fontFace": "Aptos",
+          "fontSize": 17,
+          "color": "4C5967",
+          "margin": 0,
+          "fit": "shrink"
+        },
+        {
+          "id": "S01-PANEL-01",
+          "type": "shape",
+          "shape": "roundRect",
+          "x": 9.2,
+          "y": 0.75,
+          "w": 3.15,
+          "h": 5.95,
+          "rectRadius": 0.08,
+          "fill": { "color": "1E6F68" },
+          "line": { "color": "1E6F68" }
+        },
+        {
+          "id": "S01-PANELTEXT-01",
+          "type": "text",
+          "text": "计划图片：阶段 3.3 从登记原件插入",
+          "x": 9.6,
+          "y": 2.55,
+          "w": 2.35,
+          "h": 1.5,
+          "fontFace": "Aptos",
+          "fontSize": 16,
+          "bold": true,
+          "color": "FFFFFF",
+          "align": "center",
+          "valign": "middle",
+          "margin": 0,
+          "fit": "shrink"
+        }
+      ]
+    }
+  ]
+}

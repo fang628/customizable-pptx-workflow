@@ -1,0 +1,605 @@
+{
+  "purpose": "仅研究视觉风格，不作为新项目事实或外部上传许可",
+  "items": [
+    {
+      "id": "R001",
+      "path": "其余页/111.png",
+      "width": 1920,
+      "height": 1080,
+      "sha256": "fa0e842eded853e3660b7c7dc51d07faa8b72aba219e4ceac91d2b808b1656c3",
+      "sheet": "sheet-01.jpg"
+    },
+    {
+      "id": "R002",
+      "path": "其余页/1112.png",
+      "width": 1920,
+      "height": 1080,
+      "sha256": "416d446eb7c3d4c8cc4395f8e8920d6633bcbb3b538b54f6c4d16e38d38bd444",
+      "sheet": "sheet-01.jpg"
+    },
+    {
+      "id": "R003",
+      "path": "其余页/1113.png",
+      "width": 1920,
+      "height": 1080,
+      "sha256": "1dcdba4105cad949f81811f227525a2a86da1c93c4b9a148e522ac8eed9c5f79",
+      "sheet": "sheet-01.jpg"
+    },
+    {
+      "id": "R004",
+      "path": "其余页/1114.png",
+      "width": 1920,
+      "height": 1080,
+      "sha256": "a1b1deba28457a1fe7dfaec93ccaff9ff23d8b9cd5d1f3cb8ea42aa49fac33d1",
+      "sheet": "sheet-01.jpg"
+    },
+    {
+      "id": "R005",
+      "path": "其余页/1115.png",
+      "width": 1920,
+      "height": 1080,
+      "sha256": "f9d6910a4bd49da264819eb7f05823cda8cb7abfa5390f2349a76a75310785f7",
+      "sheet": "sheet-01.jpg"
+    },
+    {
+      "id": "R006",
+      "path": "其余页/1116.png",
+      "width": 1920,
+      "height": 1080,
+      "sha256": "f389013163d78d7c77a48b5cc434555ad578b132bd4f4aceae093f64e44c6bc2",
+      "sheet": "sheet-01.jpg"
+    },
+    {
+      "id": "R007",
+      "path": "其余页/112.png",
+      "width": 1920,
+      "height": 1080,
+      "sha256": "26761e50805427774b92e42dba434860dac44b0ab3e513a6839c7a11a3bdf342",
+      "sheet": "sheet-01.jpg"
+    },
+    {
+      "id": "R008",
+      "path": "其余页/116.png",
+      "width": 1920,
+      "height": 1080,
+      "sha256": "4c3e09db727cf6ad921c387e1e0e0a9544a67738ee6be8c458ff97a8f8f045af",
+      "sheet": "sheet-01.jpg"
+    },
+    {
+      "id": "R009",
+      "path": "其余页/117.png",
+      "width": 1920,
+      "height": 1080,
+      "sha256": "226fc4f8c571dbd5822a069d838d4b3e2260931eafdc14dcbd9fd83dd74ec345",
+      "sheet": "sheet-01.jpg"
+    },
+    {
+      "id": "R010",
+      "path": "其余页/118.png",
+      "width": 1920,
+      "height": 1080,
+      "sha256": "86b838ca53075cfea30928363e6e57a274526b3626802ebdd24ce2992b7fde33",
+      "sheet": "sheet-01.jpg"
+    },
+    {
+      "id": "R011",
+      "path": "其余页/12.png",
+      "width": 1920,
+      "height": 1080,
+      "sha256": "4f3a1142629eb1687c9dfb43ef7e81eabd2fa15fb0aeda6de68a36aed678736d",
+      "sheet": "sheet-01.jpg"
+    },
+    {
+      "id": "R012",
+      "path": "其余页/13.png",
+      "width": 1920,
+      "height": 1080,
+      "sha256": "b5cfee333d6c6335b0ff354318349683f155cdc26d3472f7e0e54153516e96eb",
+      "sheet": "sheet-01.jpg"
+    },
+    {
+      "id": "R013",
+      "path": "其余页/14.png",
+      "width": 1920,
+      "height": 1080,
+      "sha256": "98de2676bba6dd7f395f74186dfb3c114d73928fa9377cf557a2e01157f3fe58",
+      "sheet": "sheet-02.jpg"
+    },
+    {
+      "id": "R014",
+      "path": "其余页/15.png",
+      "width": 1920,
+      "height": 1080,
+      "sha256": "0b15817d986213ce7a283f4fe22360b2dc8da6ade3e500a22e46b1a8e7e69f24",
+      "sheet": "sheet-02.jpg"
+    },
+    {
+      "id": "R015",
+      "path": "其余页/16.png",
+      "width": 1920,
+      "height": 1080,
+      "sha256": "1400f4bd919d4f982436eef7f77c42945614aaa5bde4a26ac695ed978413cb9e",
+      "sheet": "sheet-02.jpg"
+    },
+    {
+      "id": "R016",
+      "path": "其余页/1789608356845.png",
+      "width": 2048,
+      "height": 1152,
+      "sha256": "37b9e194c3537b27f0258e5bec8b42d09d11a0e2719ec3f8c9f448e60664ff05",
+      "sheet": "sheet-02.jpg"
+    },
+    {
+      "id": "R017",
+      "path": "其余页/1789608360573.png",
+      "width": 2048,
+      "height": 1152,
+      "sha256": "479e055fc1ddf99fe809329bd58aa3d3f77419bacee9b5fa79f631c97ed5c803",
+      "sheet": "sheet-02.jpg"
+    },
+    {
+      "id": "R018",
+      "path": "其余页/1789608363078.png",
+      "width": 2048,
+      "height": 1152,
+      "sha256": "a6f5f10829380d7c022d4e9f6d534470ea10626f44d77fc0a0dfe5b1d1f400fc",
+      "sheet": "sheet-02.jpg"
+    },
+    {
+      "id": "R019",
+      "path": "其余页/1789608366323.png",
+      "width": 2048,
+      "height": 1152,
+      "sha256": "fd68dff608a697d5efa816c77561b3a665c38d71ad87c8d70073a95836b6beae",
+      "sheet": "sheet-02.jpg"
+    },
+    {
+      "id": "R020",
+      "path": "其余页/1789608370231.png",
+      "width": 2048,
+      "height": 1152,
+      "sha256": "166bedc53d81ba4de6180eb84bb8e906331ab2f7724af7efd5512d1cb420d9b8",
+      "sheet": "sheet-02.jpg"
+    },
+    {
+      "id": "R021",
+      "path": "其余页/1789608644821.png",
+      "width": 384,
+      "height": 216,
+      "sha256": "42ee7d7d35d9a4a001bd14e7d7202f64a7043b7bb6b0f22e13daf640a5f97002",
+      "sheet": "sheet-02.jpg"
+    },
+    {
+      "id": "R022",
+      "path": "其余页/1789608645799.png",
+      "width": 384,
+      "height": 216,
+      "sha256": "5c88524bed04d5e2b0b5d08c2188d9f466377908eebe9a36c8e988eeafb773c2",
+      "sheet": "sheet-02.jpg"
+    },
+    {
+      "id": "R023",
+      "path": "其余页/1789608652036.png",
+      "width": 384,
+      "height": 216,
+      "sha256": "45b6f97a0ecdc86d6e5162b226540ec7ca80541dc2051554cc855bcc3db9d1ae",
+      "sheet": "sheet-02.jpg"
+    },
+    {
+      "id": "R024",
+      "path": "其余页/1789608652947.png",
+      "width": 384,
+      "height": 216,
+      "sha256": "1ba4dc8bf9f348fbb0f23bdb30602f6d2e1d4fce8ce143048d66b1bda091c70d",
+      "sheet": "sheet-02.jpg"
+    },
+    {
+      "id": "R025",
+      "path": "其余页/1789608662549.png",
+      "width": 384,
+      "height": 216,
+      "sha256": "ca9d90341db1467b8635c9357973ffaff54f936770ff2623573ca4069a9fe678",
+      "sheet": "sheet-03.jpg"
+    },
+    {
+      "id": "R026",
+      "path": "其余页/1789608726753.png",
+      "width": 384,
+      "height": 216,
+      "sha256": "70fdd897e97d8ab7f74e2a734b532e4149b18a9ae7e88ea98f2834bfc6a84e7d",
+      "sheet": "sheet-03.jpg"
+    },
+    {
+      "id": "R027",
+      "path": "其余页/1789608728041.png",
+      "width": 384,
+      "height": 216,
+      "sha256": "5e929d1ef0e7e29f0c5d7ef1c0e2962eee03aa5501a50eea3830e436c20daee2",
+      "sheet": "sheet-03.jpg"
+    },
+    {
+      "id": "R028",
+      "path": "其余页/1789608735324.png",
+      "width": 384,
+      "height": 216,
+      "sha256": "8bb1f5b6f3187e097e3dea8c375829700a90939f81fd0dbbc3a38e81a4d5b39c",
+      "sheet": "sheet-03.jpg"
+    },
+    {
+      "id": "R029",
+      "path": "其余页/1789608736066.png",
+      "width": 384,
+      "height": 216,
+      "sha256": "c9859764b345eabfee0988cb9ca333949701b0db28152f1647182db4f36891aa",
+      "sheet": "sheet-03.jpg"
+    },
+    {
+      "id": "R030",
+      "path": "其余页/2.png",
+      "width": 1920,
+      "height": 1080,
+      "sha256": "942f9083ec7644aaae77242951a7b7cfe95cb268706e9f3cea2292c75060fa22",
+      "sheet": "sheet-03.jpg"
+    },
+    {
+      "id": "R031",
+      "path": "其余页/21 (1).png",
+      "width": 1920,
+      "height": 1080,
+      "sha256": "e55b3402642cd08a87d02e2f6b4cf95a103924268d077a471b211e58a6f1268c",
+      "sheet": "sheet-03.jpg"
+    },
+    {
+      "id": "R032",
+      "path": "其余页/21 (2).png",
+      "width": 1920,
+      "height": 1080,
+      "sha256": "5e6ba68f81babfc31cdc9f293a7568da5fa52b784b56f408a999cf28a1851ee2",
+      "sheet": "sheet-03.jpg"
+    },
+    {
+      "id": "R033",
+      "path": "其余页/21 (3).png",
+      "width": 1920,
+      "height": 1080,
+      "sha256": "3aaa8238034870f36ff83563b6d10bfbe312252b94f6311bc76eba4000cdb50f",
+      "sheet": "sheet-03.jpg"
+    },
+    {
+      "id": "R034",
+      "path": "其余页/21 (5).png",
+      "width": 1920,
+      "height": 1080,
+      "sha256": "4fc039d065e54b81c19ba0ea4935316d786ff0ea913e8eecd950330638a78a03",
+      "sheet": "sheet-03.jpg"
+    },
+    {
+      "id": "R035",
+      "path": "其余页/21 (6).png",
+      "width": 1920,
+      "height": 1080,
+      "sha256": "91cc9309f274140772340e833bb4e761452ead701dc2647a91d202d708be6c66",
+      "sheet": "sheet-03.jpg"
+    },
+    {
+      "id": "R036",
+      "path": "其余页/3.png",
+      "width": 1920,
+      "height": 1080,
+      "sha256": "24ae1791b6d520b776048c1dd0d14040e733d2813dfa3800605cce6232ee4ae5",
+      "sheet": "sheet-03.jpg"
+    },
+    {
+      "id": "R037",
+      "path": "其余页/31 (1).png",
+      "width": 1920,
+      "height": 1080,
+      "sha256": "d2b655ab32b44d7b66b4781ff657c99876c011a6ae51f99b855bd97bffac105f",
+      "sheet": "sheet-04.jpg"
+    },
+    {
+      "id": "R038",
+      "path": "其余页/31 (2).png",
+      "width": 1920,
+      "height": 1080,
+      "sha256": "ec93a69d95ff3ac37cd77e09417fba5ad29e288eeafde872e5d4a622ec85b8bf",
+      "sheet": "sheet-04.jpg"
+    },
+    {
+      "id": "R039",
+      "path": "其余页/31 (4).png",
+      "width": 1920,
+      "height": 1080,
+      "sha256": "0eed1c081a5e54b7e3931bd059f95a78f24bb81799ec3db705a0efbf4076c000",
+      "sheet": "sheet-04.jpg"
+    },
+    {
+      "id": "R040",
+      "path": "其余页/31 (5).png",
+      "width": 1920,
+      "height": 1080,
+      "sha256": "24fccc3a0c2107955fafa6548896ce53ee6ef4364473e20dbace87147e8b22de",
+      "sheet": "sheet-04.jpg"
+    },
+    {
+      "id": "R041",
+      "path": "其余页/31 (6).png",
+      "width": 1920,
+      "height": 1080,
+      "sha256": "32d194a6376172739e81939f9b85272465eb9601972589f646e6b864984c8f72",
+      "sheet": "sheet-04.jpg"
+    },
+    {
+      "id": "R042",
+      "path": "其余页/5.png",
+      "width": 1920,
+      "height": 1080,
+      "sha256": "7cc8c892460e1ae561bc2b756e79072635061fdc611a35bb94ceb9b040e6d9e7",
+      "sheet": "sheet-04.jpg"
+    },
+    {
+      "id": "R043",
+      "path": "其余页/7.png",
+      "width": 1920,
+      "height": 1080,
+      "sha256": "02c2d8ea7a36c4d65f058ed971aa4d1cf90962a93c02b6214df4417032fd0632",
+      "sheet": "sheet-04.jpg"
+    },
+    {
+      "id": "R044",
+      "path": "其余页/8.png",
+      "width": 1920,
+      "height": 1080,
+      "sha256": "36b29d43fa555e8360df70d8d42fdd7f1e8c8b9dce5d5036ff88c7c4f3b590e5",
+      "sheet": "sheet-04.jpg"
+    },
+    {
+      "id": "R045",
+      "path": "其余页/share_1789607710314.png",
+      "width": 384,
+      "height": 216,
+      "sha256": "19750a7d936b31534faf88d4ae397e5727575d67990d05dc5626e22afeffef3e",
+      "sheet": "sheet-04.jpg"
+    },
+    {
+      "id": "R046",
+      "path": "其余页/share_1789607717178.png",
+      "width": 384,
+      "height": 216,
+      "sha256": "0c9b72956d5cdf5e2af085c933a653e8ecac506959d739aaba4fe1f1d3a5467a",
+      "sheet": "sheet-04.jpg"
+    },
+    {
+      "id": "R047",
+      "path": "其余页/share_1789607742058.png",
+      "width": 384,
+      "height": 216,
+      "sha256": "520b989b410f5fd8c43209a4cfe61ebf11a3ede872cc2bfe5cdd900ab6308dad",
+      "sheet": "sheet-04.jpg"
+    },
+    {
+      "id": "R048",
+      "path": "其余页/share_1789608074578.png",
+      "width": 384,
+      "height": 216,
+      "sha256": "1d23d22de3dac30239e53ff92f77b586c9042646bc6c51c4e64abce77e6e4608",
+      "sheet": "sheet-04.jpg"
+    },
+    {
+      "id": "R049",
+      "path": "其余页/share_1789608077606.png",
+      "width": 384,
+      "height": 216,
+      "sha256": "0d1844136d8a5ff28eb66d693921e5f60adfd712d67473b8941f33ae9119340a",
+      "sheet": "sheet-05.jpg"
+    },
+    {
+      "id": "R050",
+      "path": "其余页/内页_02.png",
+      "width": 1920,
+      "height": 1080,
+      "sha256": "bdebc49bd2881afd16a606b3b32f5bb793bd5136e8bb0b8c02b1fdbfcad17ff6",
+      "sheet": "sheet-05.jpg"
+    },
+    {
+      "id": "R051",
+      "path": "其余页/内页_03.png",
+      "width": 1920,
+      "height": 1080,
+      "sha256": "5dc194c7e82c783c4f7a648087f3f63f2f07e7f37e6829dc6f9f4a73316126e1",
+      "sheet": "sheet-05.jpg"
+    },
+    {
+      "id": "R052",
+      "path": "其余页/内页_04.png",
+      "width": 1920,
+      "height": 1080,
+      "sha256": "1ed6be2e27d17d4fabf00fb5976f9dd7df498f968dfa626495f1690a7a13b8ed",
+      "sheet": "sheet-05.jpg"
+    },
+    {
+      "id": "R053",
+      "path": "其余页/内页_05.png",
+      "width": 1920,
+      "height": 1080,
+      "sha256": "ff40c21f5ba0be3cd307109cec39e3688692c4ea46b89f421b16c91758e43496",
+      "sheet": "sheet-05.jpg"
+    },
+    {
+      "id": "R054",
+      "path": "其余页/内页_06.png",
+      "width": 1920,
+      "height": 1080,
+      "sha256": "65ea50f5e239e7a70eb5cb0cac9b711041d3389f81b7d627fd7a7793753edbcd",
+      "sheet": "sheet-05.jpg"
+    },
+    {
+      "id": "R055",
+      "path": "封面/1789608350673.png",
+      "width": 2048,
+      "height": 1152,
+      "sha256": "1ee1c176ee7b0c9e9f3a21e0e1264ead2b37a38294227aa2583998b65823fc9f",
+      "sheet": "sheet-05.jpg"
+    },
+    {
+      "id": "R056",
+      "path": "封面/1789608720819.png",
+      "width": 384,
+      "height": 216,
+      "sha256": "17e12f6778029edbe25c3c64157670875af3e39dff7222445d6074cc0025ad81",
+      "sheet": "sheet-05.jpg"
+    },
+    {
+      "id": "R057",
+      "path": "封面/Codex Image 2026年9月17日 12_16_10.png",
+      "width": 1920,
+      "height": 1080,
+      "sha256": "a6a809bca565d2f4653a3a57f9c9f1c8a7b5dd45db1edd2dc1de90cc119c92ba",
+      "sheet": "sheet-05.jpg"
+    },
+    {
+      "id": "R058",
+      "path": "封面/Codex Image 2026年9月17日 12_16_16.png",
+      "width": 1920,
+      "height": 1080,
+      "sha256": "683535f1a545b9dd4d461db6f1bdf31f924bdd4051d792b9a0db40d65a148bc6",
+      "sheet": "sheet-05.jpg"
+    },
+    {
+      "id": "R059",
+      "path": "封面/Codex Image 2026年9月17日 12_16_20.png",
+      "width": 1920,
+      "height": 1080,
+      "sha256": "ede99657d79194909c52a5f8e02be9ffa239111f7b52ed37227df8d131240b0b",
+      "sheet": "sheet-05.jpg"
+    },
+    {
+      "id": "R060",
+      "path": "封面/Codex Image 2026年9月17日 12_16_26.png",
+      "width": 1920,
+      "height": 1080,
+      "sha256": "89205ee9695c1d6ca045cb64aacc3be37b7debed734ebe9a6f29232907d94af0",
+      "sheet": "sheet-05.jpg"
+    },
+    {
+      "id": "R061",
+      "path": "封面/Codex Image 2026年9月17日 12_16_30.png",
+      "width": 1920,
+      "height": 1080,
+      "sha256": "992780d71f11bbdda278ede525b818f1928e1ff4bda4a214c46f337ceedc47f8",
+      "sheet": "sheet-06.jpg"
+    },
+    {
+      "id": "R062",
+      "path": "封面/Codex Image 2026年9月17日 12_16_35.png",
+      "width": 1920,
+      "height": 1080,
+      "sha256": "9c930df76fc45b9c40400b62f99606ac6a8e8c09ab6a4ba8981415442a49f43e",
+      "sheet": "sheet-06.jpg"
+    },
+    {
+      "id": "R063",
+      "path": "封面/Codex Image 2026年9月17日 12_16_39.png",
+      "width": 1920,
+      "height": 1080,
+      "sha256": "822ad36a72a5abb6744b9f59f70186e5e82da5bbe3dc4bf176fd1127ca1e4cbd",
+      "sheet": "sheet-06.jpg"
+    },
+    {
+      "id": "R064",
+      "path": "封面/share_1789607700328.png",
+      "width": 384,
+      "height": 216,
+      "sha256": "e7f6649ae94fe17918669d199a0ada685ea7695ed6e45d3f8ca750219a5ea09b",
+      "sheet": "sheet-06.jpg"
+    },
+    {
+      "id": "R065",
+      "path": "封面/share_1789608635884.png",
+      "width": 384,
+      "height": 216,
+      "sha256": "367c0d33d8514bd2df78949866edf45805a51bd9f4fa8737e3e7020548165eda",
+      "sheet": "sheet-06.jpg"
+    },
+    {
+      "id": "R066",
+      "path": "目录/1.png",
+      "width": 1920,
+      "height": 1080,
+      "sha256": "3334d8b57d2a1b0c85a7480cb6a35483567733edc8353c0408ba97f67c980171",
+      "sheet": "sheet-06.jpg"
+    },
+    {
+      "id": "R067",
+      "path": "目录/11.png",
+      "width": 1920,
+      "height": 1080,
+      "sha256": "f5367a6d3a96dcbe573616c8851446242876368e256cfe4b50062821ee7ee45e",
+      "sheet": "sheet-06.jpg"
+    },
+    {
+      "id": "R068",
+      "path": "目录/1111.png",
+      "width": 1920,
+      "height": 1080,
+      "sha256": "5a0e1f90706bec488cdd044b3a1682adabaf093ae3add7d344a02f5ab55b070b",
+      "sheet": "sheet-06.jpg"
+    },
+    {
+      "id": "R069",
+      "path": "目录/114.png",
+      "width": 1920,
+      "height": 1080,
+      "sha256": "592fb53c1d2ace9390647b2de47f4e3ab33283649d40ab5a7013a52c8fa4beee",
+      "sheet": "sheet-06.jpg"
+    },
+    {
+      "id": "R070",
+      "path": "目录/1789608354083.png",
+      "width": 2048,
+      "height": 1152,
+      "sha256": "41a3c640f54f3f4d13f0f78c9b7c1701a2aa856149c546914e346b58b8583c56",
+      "sheet": "sheet-06.jpg"
+    },
+    {
+      "id": "R071",
+      "path": "目录/1789608637708.png",
+      "width": 384,
+      "height": 216,
+      "sha256": "194e76029955d7589435742ceb772d38a42564fb4302294bcfb896e24a60afc3",
+      "sheet": "sheet-06.jpg"
+    },
+    {
+      "id": "R072",
+      "path": "目录/1789608721991.png",
+      "width": 384,
+      "height": 216,
+      "sha256": "1baf7ae1a117388aa16877b39ab89a8865eae5212f1671c91112ef53dd5e8dc3",
+      "sheet": "sheet-06.jpg"
+    },
+    {
+      "id": "R073",
+      "path": "目录/21 (4).png",
+      "width": 1920,
+      "height": 1080,
+      "sha256": "ca6ac8624b5b344aba9c9858cac79cfc36cc93e0bff45f016b2f8e34a023e63e",
+      "sheet": "sheet-07.jpg"
+    },
+    {
+      "id": "R074",
+      "path": "目录/31 (3).png",
+      "width": 1920,
+      "height": 1080,
+      "sha256": "7122fc5ce116f6fe493901c44ae35cc9928771f7c474014e363e8dc0e86f473a",
+      "sheet": "sheet-07.jpg"
+    },
+    {
+      "id": "R075",
+      "path": "目录/内页_01.png",
+      "width": 1920,
+      "height": 1080,
+      "sha256": "44c0f3825827e33ed4d5db7fc57e73234dc9c3ff41c1caacf9b0951a61755aeb",
+      "sheet": "sheet-07.jpg"
+    }
+  ]
+}

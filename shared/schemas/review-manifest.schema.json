@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "version",
+    "created_at",
+    "pptx_sha256",
+    "image_plan_sha256",
+    "previews_sha256",
+    "preview_approval_sha256",
+    "render_manifest_sha256",
+    "pages"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "const": 1
+    },
+    "created_at": {
+      "type": "string",
+      "minLength": 1
+    },
+    "pptx_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "image_plan_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "previews_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "preview_approval_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "render_manifest_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "pages": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "preview_path",
+          "render_path",
+          "compare_path",
+          "preview_sha256",
+          "render_sha256",
+          "review_reused"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^S[0-9]{2,}$"
+          },
+          "preview_path": {
+            "type": "string",
+            "minLength": 1
+          },
+          "render_path": {
+            "type": "string",
+            "minLength": 1
+          },
+          "compare_path": {
+            "type": "string",
+            "minLength": 1
+          },
+          "preview_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "render_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "review_reused": {
+            "type": "boolean"
+          }
+        }
+      }
+    }
+  }
+}

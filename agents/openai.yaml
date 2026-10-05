@@ -1,0 +1,6 @@
+interface:
+  display_name: "可编辑 PPTX 工作流"
+  short_description: "从材料整理、三版方案选择到逐页重建与可编辑 PPTX 交付"
+  default_prompt: "使用 $pptx-workflow，依据我的材料制作设计完整、可编辑的 PPTX。"
+policy:
+  allow_implicit_invocation: true

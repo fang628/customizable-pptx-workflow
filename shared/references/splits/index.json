@@ -1,0 +1,187 @@
+{
+  "version": 1,
+  "note": "预览图（阶段 2.1／2.2）的分块参考图：特殊分块 9 种（斜切／弧线／扇形／同心圆／波浪／金字塔／圆形放射／左圆右栏／六边形），一套 PPT 里一半以上的正文页要用特殊分块、内容合适时越多越好；横带与四宫格（错位）不算特殊分块、不计入比例，但同样有形态样例。用到哪一条就把该条目的参考图连同设计提示词一起交给 AI。",
+  "splits": [
+    {
+      "id": "diagonal-cut",
+      "name": "斜切",
+      "label": "斜切分块",
+      "kind": "special",
+      "default": "diagonal-cut.png",
+      "files": [
+        "diagonal-cut.png"
+      ],
+      "form": "一条或两条近乎平行的斜线把页面切成两块／三块，倾角小（约 5°–25°）；样例是两条近乎垂直的斜线，把画面切成左中右三块",
+      "prompt": "从右上到左下轻微斜切，倾角约 10°，两条平行斜线",
+      "aliases": [
+        "斜切",
+        "斜向分块"
+      ]
+    },
+    {
+      "id": "arc",
+      "name": "弧线",
+      "label": "弧线分块",
+      "kind": "special",
+      "default": "arc-vertical-parallel.png",
+      "files": [
+        "arc-vertical-parallel.png",
+        "arc-horizontal-dome.png",
+        "arc-vertical-lens.png"
+      ],
+      "form": "一条或两条同向、近乎平行的弧线分区（圆的一段）；样例分别是两条竖向平行弧线、一条横向向上凸的弧线（下部通栏）、两条相向弧线（中带收腰）",
+      "prompt": "两条近乎平行的弧线，弧度平缓，写清向左凸还是向右凸",
+      "aliases": [
+        "弧线",
+        "圆弧"
+      ]
+    },
+    {
+      "id": "fan",
+      "name": "扇形",
+      "label": "扇形分块",
+      "kind": "special",
+      "default": "radial-diagonal.png",
+      "files": [
+        "radial-diagonal.png"
+      ],
+      "form": "以一个圆心向外发散出 2–4 个扇区（像饼图）；样例是中心圆＋四条斜向放射线，按扇区数套用",
+      "prompt": "以页面中心偏右为圆心，分成 3 个扇区，顺时针依次是…",
+      "aliases": [
+        "扇形"
+      ]
+    },
+    {
+      "id": "concentric",
+      "name": "同心圆",
+      "label": "同心圆分块",
+      "kind": "special",
+      "default": "concentric-circles.png",
+      "files": [
+        "concentric-circles.png",
+        "concentric-with-columns.png"
+      ],
+      "form": "一个或多个同心圆，把画面分成中心区与环带；样例一是居中大圆＋左右弧带＋一条水平分带，样例二是中心大圆＋内圆＋左侧三条横条＋右侧一条竖条",
+      "prompt": "以居中大圆为核心，左右各一条弧带包住",
+      "aliases": [
+        "同心圆"
+      ]
+    },
+    {
+      "id": "wave",
+      "name": "波浪",
+      "label": "波浪形分块",
+      "kind": "special",
+      "default": "wave-horizontal.png",
+      "files": [
+        "wave-horizontal.png",
+        "wave-vertical.png",
+        "wave-with-nodes.png"
+      ],
+      "form": "一条或两条波浪线（纵向或横向）分区；样例分别是横向缓波、两条竖向波浪线、横向波浪线上串三个圆形节点并向下分栏",
+      "prompt": "两条竖向波浪线，约 3 个波峰，振幅小",
+      "aliases": [
+        "波浪"
+      ]
+    },
+    {
+      "id": "pyramid",
+      "name": "金字塔",
+      "label": "金字塔形分块",
+      "kind": "special",
+      "default": "pyramid-peak.png",
+      "files": [
+        "pyramid-peak.png"
+      ],
+      "form": "一条跨页的尖顶折线（∧）分成顶部三角与下方两块；样例是顶点在页面中上部的对称尖顶",
+      "prompt": "一条跨页的尖顶折线，顶点在页面中上部略偏左",
+      "aliases": [
+        "金字塔"
+      ]
+    },
+    {
+      "id": "radial",
+      "name": "圆形放射",
+      "label": "圆形分块（放射）",
+      "kind": "special",
+      "default": "radial-cross.png",
+      "files": [
+        "radial-cross.png",
+        "radial-diagonal.png"
+      ],
+      "form": "中心一个圆＋十字线分成四象限；样例是十字线（上下左右）与斜向十字（X）两种走向",
+      "prompt": "十字线把页面分成四象限，中心一个圆",
+      "aliases": [
+        "圆形分块",
+        "放射"
+      ]
+    },
+    {
+      "id": "left-disc",
+      "name": "左圆右栏",
+      "label": "左圆右栏分块",
+      "kind": "special",
+      "default": "left-disc-right-band.png",
+      "files": [
+        "left-disc-right-band.png"
+      ],
+      "form": "左侧一个大圆（可出血）＋右侧若干条横条／卡片；样例是两条左凸弧线包出左侧圆区，右侧是一条贯通横带",
+      "prompt": "左侧一个大圆贴到页边，右侧三个等宽横条自上而下",
+      "aliases": [
+        "左圆右栏"
+      ]
+    },
+    {
+      "id": "honeycomb",
+      "name": "六边形",
+      "label": "六边形分块（蜂窝）",
+      "kind": "special",
+      "default": "honeycomb.png",
+      "files": [
+        "honeycomb.png"
+      ],
+      "form": "三个六边形交错拼贴（上方居中一个、下方左右各一个），周围嵌三块矩形卡片（左上、右上、下方居中），斜边自然形成分区",
+      "prompt": "三个六边形交错排布，周围三块矩形卡片，斜边分区",
+      "aliases": [
+        "六边形",
+        "蜂窝",
+        "蜂窝分块"
+      ]
+    }
+  ],
+  "macro": [
+    {
+      "id": "offset-grid",
+      "name": "四宫格（错位）",
+      "label": "四宫格分块（错位）",
+      "kind": "macro",
+      "default": "offset-grid.png",
+      "files": [
+        "offset-grid.png"
+      ],
+      "form": "横线通栏、两条竖线上下错位，四块大小不等——比标准四宫格松弛",
+      "prompt": "四宫格错位分块：横线通栏，上半竖线偏右、下半竖线偏左",
+      "aliases": [
+        "四宫格"
+      ]
+    },
+    {
+      "id": "band-row",
+      "name": "横带",
+      "label": "横带分块（中间通栏）",
+      "kind": "macro",
+      "default": "band-row.png",
+      "files": [
+        "band-row.png"
+      ],
+      "form": "一条通栏横带把页面分成上、中、下三带；上带的竖线偏右、下带的竖线偏左（错位分栏），中带保持通栏放结论或关键图",
+      "prompt": "中间一条通栏横带，上带竖线偏右、下带竖线偏左，中带通栏",
+      "aliases": [
+        "横带",
+        "通栏横带",
+        "带状分块"
+      ]
+    }
+  ],
+  "usage": "这些图**只是分区参考**：只说明这一页分成哪几块、分界的走向、弯曲方向、顶点或圆心的相对位置。图上的黑线、线宽、锯齿、透视与具体位置都**不要照抄**——预览里不画这些分界线，分区一律靠色差（分色色块）与构造间距实现；只有设计稿明确要求「用线条托住文字」时才画线，而且必须完全水平或竖直、粗细统一、不带锯齿。"
+}

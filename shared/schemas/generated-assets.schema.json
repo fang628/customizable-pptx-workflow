@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["version", "assets"],
+  "additionalProperties": false,
+  "properties": {
+    "version": { "const": 1 },
+    "assets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "path",
+          "sha256",
+          "kind",
+          "model",
+          "prompt",
+          "intendedUse",
+          "factualBoundary"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^GEN-[0-9]{3,}$" },
+          "path": {
+            "type": "string",
+            "pattern": "^02_design/generated-assets/"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "kind": {
+            "enum": [
+              "decoration",
+              "texture",
+              "abstract-background",
+              "motif",
+              "generic-icon",
+              "theme-icon",
+              "illustrative-scene",
+              "hero-image",
+              "content-background",
+              "toc-image",
+              "thanks-image",
+              "other-nonfactual"
+            ]
+          },
+          "styleId": {
+            "enum": ["a", "b", "c"],
+            "description": "该候选图服务的设计方向，a/b/c 与阶段 2.1 的 option-a/b/c 一一对应；阶段 1.2 的候选图必须按三个方向成组登记。"
+          },
+          "model": { "type": "string", "minLength": 1 },
+          "prompt": { "type": "string", "minLength": 1 },
+          "intendedUse": { "type": "string", "minLength": 1 },
+          "factualBoundary": { "type": "string", "minLength": 1 },
+          "sourceReferences": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 },
+            "uniqueItems": true
+          },
+          "seed": { "type": "integer" },
+          "provider": { "type": "string", "minLength": 1 },
+          "createdAt": { "type": "string", "minLength": 1 },
+          "outputSize": {
+            "type": "array",
+            "prefixItems": [
+              { "type": "integer", "minimum": 1 },
+              { "type": "integer", "minimum": 1 }
+            ],
+            "minItems": 2,
+            "maxItems": 2
+          },
+          "notes": { "type": "string" }
+        }
+      }
+    }
+  }
+}

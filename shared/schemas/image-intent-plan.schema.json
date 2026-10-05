@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["version", "canvas", "slides"],
+  "additionalProperties": false,
+  "properties": {
+    "version": { "const": 1 },
+    "canvas": {
+      "type": "object",
+      "required": ["width", "height", "unit", "aspect"],
+      "additionalProperties": false,
+      "properties": {
+        "width": { "const": 1920 },
+        "height": { "const": 1080 },
+        "unit": { "const": "px" },
+        "aspect": { "const": "16:9" }
+      }
+    },
+    "slides": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "images"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^S[0-9]{2,}$" },
+          "images": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/image" }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "image": {
+      "type": "object",
+      "required": [
+        "id",
+        "sourceId",
+        "description",
+        "role",
+        "placement",
+        "relativeSize",
+        "fitIntent",
+        "layer",
+        "placeholder",
+        "altText",
+        "reason"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "sourceId": { "type": "string", "minLength": 1 },
+        "description": { "type": "string", "minLength": 1 },
+        "plannedPath": { "type": "string", "minLength": 1 },
+        "role": {
+          "enum": [
+            "hero",
+            "evidence",
+            "support",
+            "portrait",
+            "scene",
+            "product",
+            "document",
+            "chart",
+            "background",
+            "decoration"
+          ]
+        },
+        "placement": {
+          "type": "object",
+          "required": ["region", "relation"],
+          "additionalProperties": false,
+          "properties": {
+            "region": {
+              "enum": ["left", "right", "top", "bottom", "center", "background", "full-bleed", "inline"]
+            },
+            "relation": { "type": "string", "minLength": 1 }
+          }
+        },
+        "relativeSize": { "enum": ["small", "medium", "large", "hero"] },
+        "fitIntent": { "enum": ["contain", "cover", "natural"] },
+        "focalIntent": { "type": "string", "minLength": 1 },
+        "cropIntent": { "type": "string", "minLength": 1 },
+        "layer": { "enum": ["background", "base", "content", "foreground", "overlay"] },
+        "placeholder": {
+          "type": "object",
+          "required": ["label"],
+          "additionalProperties": false,
+          "properties": {
+            "label": { "type": "string", "minLength": 1 },
+            "hint": { "type": "string", "minLength": 1 }
+          }
+        },
+        "altText": { "type": "string", "minLength": 1 },
+        "reason": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

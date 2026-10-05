@@ -1,0 +1,10 @@
+{
+  "name": "pptx-workflow-tools",
+  "version": "0.5.0",
+  "private": true,
+  "description": "Editable PPTX workflow build tools",
+  "dependencies": {
+    "pptxgenjs": "4.0.1",
+    "sharp": "0.35.4"
+  }
+}

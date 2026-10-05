@@ -1,0 +1,251 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "include_toc",
+    "progress_bar",
+    "slides"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "include_toc": {
+      "type": "boolean",
+      "default": true,
+      "description": "是否在标题页后保留目录页；缺省和未确认时均按 true 处理。"
+    },
+    "progress_bar": {
+      "type": "object",
+      "required": [
+        "enabled",
+        "exclude_page_types"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "是否在标题页和目录页之外的内容页顶部显示进度条。"
+        },
+        "exclude_page_types": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "title",
+              "toc",
+              "content",
+              "thanks"
+            ]
+          },
+          "contains": {
+            "const": "title"
+          },
+          "description": "标题页必须排除；存在目录页时目录页也必须排除；存在致谢页时致谢页也必须排除。可附加排除其他页面类型。"
+        }
+      }
+    },
+    "slides": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "page_type",
+          "layout_id",
+          "title",
+          "texts",
+          "materials"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^S[0-9]{2,}$"
+          },
+          "page_type": {
+            "enum": [
+              "title",
+              "toc",
+              "content",
+              "thanks"
+            ]
+          },
+          "layout_id": {
+            "enum": [
+              "T01",
+              "T02",
+              "T03",
+              "D01",
+              "D02",
+              "D03",
+              "C01",
+              "C02",
+              "C03",
+              "C04",
+              "C05",
+              "C06",
+              "C07",
+              "C08"
+            ]
+          },
+          "reference_ids": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "pattern": "^R[0-9]{3}$"
+            }
+          },
+          "reference_categories": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "texts": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "text"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "text": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "source": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "materials": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      }
+    },
+    "sections": {
+      "type": "array",
+      "description": "进度条分段与条内小节标题的唯一来源。启用进度条时必填，标题必须与目录页逐字一致，并覆盖除标题页和目录页外的全部合格页面，每页只属于一个小节。",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "slide_ids"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^SEC-[0-9]{2,}$"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "slide_ids": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "pattern": "^S[0-9]{2,}$"
+            }
+          }
+        }
+      }
+    },
+    "include_speaker_script": {
+      "type": "boolean",
+      "description": "是否需要讲稿（第 4 阶段）；默认 false。需要时完成 3.3 后生成逐页演讲备注与讲稿。"
+    },
+    "include_thanks": {
+      "type": "boolean",
+      "description": "是否需要致谢页；默认 false。需要时全篇恰好一页 page_type 为 thanks，放在末页。"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "include_toc": {
+            "const": true
+          }
+        },
+        "required": [
+          "include_toc"
+        ]
+      },
+      "then": {
+        "properties": {
+          "slides": {
+            "contains": {
+              "type": "object",
+              "properties": {
+                "page_type": {
+                  "const": "toc"
+                }
+              },
+              "required": [
+                "page_type"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "include_toc": {
+            "const": false
+          }
+        },
+        "required": [
+          "include_toc"
+        ]
+      },
+      "then": {
+        "properties": {
+          "slides": {
+            "not": {
+              "contains": {
+                "type": "object",
+                "properties": {
+                  "page_type": {
+                    "const": "toc"
+                  }
+                },
+                "required": [
+                  "page_type"
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

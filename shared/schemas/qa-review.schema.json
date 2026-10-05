@@ -1,0 +1,193 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "version",
+    "content_sha256",
+    "image_plan_sha256",
+    "previews_sha256",
+    "pptx_package_sha256",
+    "render_manifest_sha256",
+    "reviewer",
+    "reviewed_at",
+    "pages"
+  ],
+  "properties": {
+    "version": {
+      "const": 1
+    },
+    "content_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "image_plan_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "previews_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "pptx_package_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "render_manifest_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "reviewer": {
+      "type": "string"
+    },
+    "reviewed_at": {
+      "type": "string"
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "pages": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "render_sha256",
+          "visual",
+          "content",
+          "photos",
+          "editability",
+          "preview_match",
+          "review_mode",
+          "confidence",
+          "human_signed",
+          "deviations"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^S[0-9]{2,}$"
+          },
+          "render_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "visual": {
+            "type": "boolean"
+          },
+          "content": {
+            "type": "boolean"
+          },
+          "photos": {
+            "type": "boolean"
+          },
+          "editability": {
+            "type": "boolean"
+          },
+          "preview_match": {
+            "type": "boolean"
+          },
+          "review_mode": {
+            "enum": [
+              "pending",
+              "manual",
+              "assisted"
+            ]
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "human_signed": {
+            "type": "boolean"
+          },
+          "notes": {
+            "type": "string"
+          },
+          "deviations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "type",
+                "region",
+                "severity",
+                "expected",
+                "actual",
+                "reason",
+                "evidence",
+                "approved_by",
+                "approved_at"
+              ],
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "region": {
+                  "type": "object",
+                  "required": [
+                    "x",
+                    "y",
+                    "w",
+                    "h"
+                  ],
+                  "properties": {
+                    "x": {
+                      "type": "number"
+                    },
+                    "y": {
+                      "type": "number"
+                    },
+                    "w": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "h": {
+                      "type": "number",
+                      "minimum": 0
+                    }
+                  }
+                },
+                "severity": {
+                  "enum": [
+                    "minor",
+                    "major"
+                  ]
+                },
+                "expected": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "actual": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "reason": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "evidence": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "approved_by": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "approved_at": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

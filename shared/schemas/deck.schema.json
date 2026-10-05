@@ -1,0 +1,629 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "meta",
+    "slides"
+  ],
+  "properties": {
+    "meta": {
+      "type": "object",
+      "required": [
+        "layout"
+      ],
+      "properties": {
+        "layout": {
+          "enum": [
+            "LAYOUT_WIDE",
+            "LAYOUT_4X3",
+            "CUSTOM"
+          ]
+        },
+        "width": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "height": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "title": {
+          "type": "string"
+        },
+        "language": {
+          "type": "string"
+        },
+        "layoutAdjustmentAuthorization": {
+          "type": "string",
+          "minLength": 1,
+          "description": "记录用户允许成品位置美化的原话或本工作流对应规则；该范围内无需再次询问。"
+        }
+      },
+      "if": {
+        "properties": {
+          "layout": {
+            "const": "CUSTOM"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "width",
+          "height"
+        ]
+      }
+    },
+    "theme": {
+      "type": "object"
+    },
+    "slides": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "elements"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^S[0-9]{2,}$"
+          },
+          "notes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "elements": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/$defs/element"
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "element": {
+      "type": "object",
+      "required": [
+        "id",
+        "type",
+        "x",
+        "y",
+        "w",
+        "h"
+      ],
+      "properties": {
+        "layoutAdjustment": {
+          "type": "object",
+          "required": [
+            "from",
+            "reason"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "from": {
+              "type": "object",
+              "required": [
+                "x",
+                "y"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "x": {
+                  "type": "number"
+                },
+                "y": {
+                  "type": "number"
+                },
+                "z": {
+                  "type": "integer"
+                },
+                "boundaryMask": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/boundaryMask"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "首次调整前的图片边缘轮廓；原来没有遮罩则为 null。"
+                }
+              }
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "description": "成品美化的位置调整。from 使用原始英寸坐标；新位置使用元素 x／y，层级使用 z。保留尺寸、素材和文本。"
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "type": {
+          "enum": [
+            "text",
+            "shape",
+            "image",
+            "svg",
+            "table",
+            "chart"
+          ]
+        },
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "w": {
+          "type": "number",
+          "minimum": 0
+        },
+        "h": {
+          "type": "number",
+          "minimum": 0
+        },
+        "z": {
+          "type": "integer"
+        },
+        "origin": {
+          "enum": [
+            "planned",
+            "reconstruction",
+            "progress"
+          ],
+          "description": "元素来源：planned＝图片计划里的登记原件；reconstruction＝阶段 3.2 重建的素材；progress＝顶部进度条里的文本（文字逐字取自 content.json 的 sections，不属于页面文案）。"
+        },
+        "preserveAlpha": {
+          "type": "boolean"
+        },
+        "transparency": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "图片透明度（0–100，PptxGenJS 语义）。预览的 opacity 换算为 100 - opacity*100，用于弱对比背景底图。"
+        },
+        "rotate": {
+          "type": "number",
+          "description": "顺时针旋转角度（度）。用于把 `pentagon` 转成直角五边形（`right-pentagon`）等需要转向的原生形状。"
+        },
+        "allowOverflow": {
+          "type": "boolean"
+        },
+        "bleed": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "left",
+              "right",
+              "top",
+              "bottom"
+            ]
+          }
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "svg": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sourceId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "altText": {
+          "type": "string"
+        },
+        "crop": {
+          "$ref": "#/$defs/crop"
+        },
+        "focal": {
+          "type": "object",
+          "required": [
+            "x",
+            "y"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "x": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "y": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          }
+        },
+        "fontSize": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "align": {
+          "enum": [
+            "left",
+            "center",
+            "right",
+            "justify"
+          ]
+        },
+        "valign": {
+          "enum": [
+            "top",
+            "middle",
+            "bottom"
+          ]
+        },
+        "fit": {
+          "enum": [
+            "none",
+            "shrink",
+            "resize",
+            "contain",
+            "cover"
+          ]
+        },
+        "shape": {
+          "enum": [
+            "rect",
+            "roundRect",
+            "ellipse",
+            "line",
+            "triangle",
+            "rtTriangle",
+            "diamond",
+            "donut",
+            "hexagon",
+            "chevron",
+            "parallelogram",
+            "trapezoid",
+            "arc",
+            "pie",
+            "cloud",
+            "wedgeRoundRectCallout",
+            "leftArrow",
+            "rightArrow",
+            "upArrow",
+            "downArrow",
+            "leftRightArrow",
+            "pentagon",
+            "homePlate",
+            "star4",
+            "star5"
+          ]
+        },
+        "chartType": {
+          "enum": [
+            "bar",
+            "line",
+            "pie",
+            "doughnut",
+            "area",
+            "radar",
+            "scatter",
+            "bubble"
+          ]
+        },
+        "rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "oneOf": [
+                {
+                  "type": [
+                    "string",
+                    "number"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "required": [
+                    "text"
+                  ],
+                  "properties": {
+                    "text": {
+                      "type": "string"
+                    },
+                    "options": {
+                      "type": "object",
+                      "properties": {
+                        "align": {
+                          "enum": [
+                            "left",
+                            "center",
+                            "right",
+                            "justify"
+                          ]
+                        },
+                        "valign": {
+                          "enum": [
+                            "top",
+                            "middle",
+                            "bottom"
+                          ]
+                        },
+                        "fit": {
+                          "enum": [
+                            "none",
+                            "shrink",
+                            "resize"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "data": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": [
+              "name",
+              "labels",
+              "values"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "labels": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": [
+                    "string",
+                    "number"
+                  ]
+                }
+              },
+              "values": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "number"
+                }
+              }
+            }
+          }
+        },
+        "boundaryMask": {
+          "$ref": "#/$defs/boundaryMask"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "text"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "text"
+            ],
+            "properties": {
+              "fit": {
+                "enum": [
+                  "none",
+                  "shrink",
+                  "resize"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "shape"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "shape"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "image"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "path"
+            ],
+            "properties": {
+              "fit": {
+                "enum": [
+                  "contain",
+                  "cover"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "svg"
+              }
+            }
+          },
+          "then": {
+            "oneOf": [
+              {
+                "required": [
+                  "path"
+                ],
+                "not": {
+                  "required": [
+                    "svg"
+                  ]
+                }
+              },
+              {
+                "required": [
+                  "svg"
+                ],
+                "not": {
+                  "required": [
+                    "path"
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "table"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "rows"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "chart"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "chartType",
+              "data"
+            ]
+          }
+        }
+      ]
+    },
+    "crop": {
+      "type": "object",
+      "required": [
+        "x",
+        "y",
+        "width",
+        "height"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "x": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "y": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "width": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1
+        },
+        "height": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1
+        },
+        "background": {
+          "type": "string",
+          "pattern": "^#[0-9A-Fa-f]{6}$"
+        }
+      }
+    },
+    "boundaryMask": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "points",
+        "boundary",
+        "reason",
+        "protectsContent"
+      ],
+      "properties": {
+        "points": {
+          "type": "array",
+          "minItems": 3,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "x",
+              "y"
+            ],
+            "properties": {
+              "x": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "y": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              }
+            }
+          }
+        },
+        "boundary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        },
+        "protectsContent": {
+          "const": true,
+          "description": "逐页看图确认主体与关键信息完整；该声明不代替实际检查。"
+        }
+      },
+      "description": "图片显示边缘的闭合轮廓；相对图片框的归一化点，可沿圆弧或曲线采样。原件与比例保持不变。"
+    }
+  }
+}

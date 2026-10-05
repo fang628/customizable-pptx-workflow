@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object", "required": ["materials"],
+  "properties": {
+    "materials": { "type": "array", "items": {
+      "type": "object", "required": ["id", "path", "sha256", "kind", "externalUpload"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "path": { "type": "string", "minLength": 1 },
+        "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "kind": { "enum": ["report", "paper", "photo", "promo", "brand", "data", "other"] },
+        "externalUpload": { "type": "boolean" },
+        "description": { "type": "string" }
+      }
+    } }
+  }
+}

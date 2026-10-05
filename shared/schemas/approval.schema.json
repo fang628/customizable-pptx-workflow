@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object", "required": ["kind", "confirmed_at", "evidence", "files"],
+  "properties": {
+    "kind": { "enum": ["requirements", "concept", "preview"] },
+    "confirmed_at": { "type": "string", "minLength": 1 },
+    "evidence": { "type": "string", "minLength": 1 },
+    "option": { "enum": ["a", "b", "c"] },
+    "files": { "type": "object", "minProperties": 1, "additionalProperties": { "type": "string", "pattern": "^[a-f0-9]{64}$" } }
+  },
+  "if": { "properties": { "kind": { "const": "concept" } } },
+  "then": { "required": ["option"] }
+}

@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["renderer", "rendered_at", "pptx_sha256", "width", "height", "pages"],
+  "properties": {
+    "renderer": { "type": "string", "minLength": 1 },
+    "version": { "type": "string" },
+    "rendered_at": { "type": "string", "minLength": 1 },
+    "pptx_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "pdf_path": {
+      "type": ["string", "null"],
+      "description": "可选：投影备份 PDF 的相对路径，仅在使用 -Pdf 导出时记录。"
+    },
+    "pdf_sha256": {
+      "type": ["string", "null"],
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "可选：投影备份 PDF 的 SHA-256。"
+    },
+    "width": { "type": "integer", "exclusiveMinimum": 0 },
+    "height": { "type": "integer", "exclusiveMinimum": 0 },
+    "pages": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "path", "sha256"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^S[0-9]{2,}$" },
+          "path": { "type": "string", "minLength": 1 },
+          "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+        }
+      }
+    }
+  }
+}

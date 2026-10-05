@@ -1,0 +1,167 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "version",
+    "provider",
+    "model",
+    "stage",
+    "attempts",
+    "jobs"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "const": 1
+    },
+    "provider": {
+      "type": "string",
+      "minLength": 1
+    },
+    "model": {
+      "type": "string",
+      "minLength": 1
+    },
+    "stage": {
+      "enum": [
+        "1.2",
+        "2.1",
+        "2.2"
+      ]
+    },
+    "budget": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "已废弃：仅保留旧账本字段，不再作为预算校验依据。"
+    },
+    "attempts": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "jobs": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "attempts",
+          "status",
+          "updated_at"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "attempts": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "status": {
+            "enum": [
+              "in_progress",
+              "complete",
+              "failed"
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "minLength": 1
+          },
+          "updated_at": {
+            "type": "string",
+            "minLength": 1
+          },
+          "provider": {
+            "type": "string",
+            "minLength": 1
+          },
+          "model": {
+            "type": "string",
+            "minLength": 1
+          },
+          "request_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "prompt_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "adapter_script_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "raw_path": {
+            "type": "string",
+            "minLength": 1
+          },
+          "raw_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "output": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "normalization": {
+            "type": "object"
+          },
+          "edit_source_asset_id": {
+            "type": "string",
+            "pattern": "^GEN-[0-9]{3,}$"
+          },
+          "edit_source_path": {
+            "type": "string",
+            "minLength": 1
+          },
+          "edit_source_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "references": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "error": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "const": "complete"
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "key",
+                "provider",
+                "model",
+                "request_id",
+                "prompt_sha256",
+                "adapter_script_sha256",
+                "raw_path",
+                "raw_sha256",
+                "output",
+                "sha256"
+              ]
+            }
+          }
+        ]
+      }
+    }
+  }
+}

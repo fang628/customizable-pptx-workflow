@@ -1,0 +1,368 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "version",
+    "stage",
+    "pages"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "const": 1
+    },
+    "stage": {
+      "enum": [
+        "2.1",
+        "2.2"
+      ]
+    },
+    "option": {
+      "enum": [
+        "a",
+        "b",
+        "c"
+      ],
+      "description": "阶段 2.1 的方向编号；阶段 2.2 不填。"
+    },
+    "styleDirection": {
+      "type": "string",
+      "minLength": 1
+    },
+    "styleConstraints": {
+      "type": "string",
+      "minLength": 1,
+      "description": "阶段 2.2：写进设计稿的选定风格约束摘要，AI 生图按它统一全篇。"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "pages": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "file",
+          "jobId",
+          "sha256",
+          "promptSummary"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^S[0-9]{2,}$"
+          },
+          "file": {
+            "type": "string",
+            "minLength": 1
+          },
+          "jobId": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]+$"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "iterations": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "生成并挑选的轮次，供追溯。"
+          },
+          "promptSummary": {
+            "type": "string",
+            "minLength": 1,
+            "description": "该页生图用到的设计稿内容摘要：分块、文字层级与图片位。"
+          },
+          "review": {
+            "type": "string",
+            "description": "本页看图后的调整说明。"
+          },
+          "notes": {
+            "type": "string"
+          },
+          "placeholders": {
+            "type": "array",
+            "description": "AI 原始页的预留区域，与图片计划逐张对应。阶段2.1保留占位块；阶段2.2必须在批准前本地插入登记原图。",
+            "items": {
+              "type": "object",
+              "required": [
+                "imageId",
+                "box"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "imageId": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "box": {
+                  "type": "object",
+                  "required": [
+                    "x",
+                    "y",
+                    "w",
+                    "h"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "x": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "y": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "w": {
+                      "type": "number",
+                      "exclusiveMinimum": 0,
+                      "maximum": 1
+                    },
+                    "h": {
+                      "type": "number",
+                      "exclusiveMinimum": 0,
+                      "maximum": 1
+                    }
+                  }
+                },
+                "clearBox": {
+                  "type": "object",
+                  "required": [
+                    "x",
+                    "y",
+                    "w",
+                    "h"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "x": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "y": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "w": {
+                      "type": "number",
+                      "exclusiveMinimum": 0,
+                      "maximum": 1
+                    },
+                    "h": {
+                      "type": "number",
+                      "exclusiveMinimum": 0,
+                      "maximum": 1
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "providerFile": {
+            "type": "string",
+            "minLength": 1,
+            "description": "不可覆盖的 AI 原始整页输出路径，与生成账本 output 相同。"
+          },
+          "providerSha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "description": "AI 原始页哈希；最终 file/sha256 对应本地插入原图后的完整预览。"
+          },
+          "originals": {
+            "type": "array",
+            "description": "阶段2.2实际插入的登记原图；无计划图片的页面填空数组。",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "imageId",
+                "sourceId",
+                "path",
+                "sha256",
+                "box",
+                "fit"
+              ],
+              "properties": {
+                "imageId": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "sourceId": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "path": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "sha256": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                "box": {
+                  "type": "object",
+                  "required": [
+                    "x",
+                    "y",
+                    "w",
+                    "h"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "x": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "y": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "w": {
+                      "type": "number",
+                      "exclusiveMinimum": 0,
+                      "maximum": 1
+                    },
+                    "h": {
+                      "type": "number",
+                      "exclusiveMinimum": 0,
+                      "maximum": 1
+                    }
+                  }
+                },
+                "fit": {
+                  "const": "contain"
+                },
+                "background": {
+                  "type": "string",
+                  "pattern": "^#[0-9A-Fa-f]{6}$"
+                },
+                "boundaryMask": {
+                  "$ref": "#/$defs/boundaryMask"
+                },
+                "clearBox": {
+                  "type": "object",
+                  "required": [
+                    "x",
+                    "y",
+                    "w",
+                    "h"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "x": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "y": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "w": {
+                      "type": "number",
+                      "exclusiveMinimum": 0,
+                      "maximum": 1
+                    },
+                    "h": {
+                      "type": "number",
+                      "exclusiveMinimum": 0,
+                      "maximum": 1
+                    }
+                  },
+                  "description": "AI 底稿的原预留区域，以背景色清理；包含实际原图框。"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "stage": {
+            "const": "2.2"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "pages": {
+            "items": {
+              "required": [
+                "providerFile",
+                "providerSha256",
+                "originals",
+                "review"
+              ]
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "boundaryMask": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "points",
+        "boundary",
+        "reason",
+        "protectsContent"
+      ],
+      "properties": {
+        "points": {
+          "type": "array",
+          "minItems": 3,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "x",
+              "y"
+            ],
+            "properties": {
+              "x": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "y": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              }
+            }
+          }
+        },
+        "boundary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        },
+        "protectsContent": {
+          "const": true,
+          "description": "逐页看图确认主体与关键信息完整；该声明不代替实际检查。"
+        }
+      },
+      "description": "图片显示边缘的闭合轮廓；相对图片框的归一化点，可沿圆弧或曲线采样。原件与比例保持不变。"
+    }
+  }
+}
