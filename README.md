@@ -2,7 +2,7 @@
 
 用于 Codex 的可编辑 PPTX 制作 skill。将论文、报告、照片、品牌素材和数据，按阶段整理为设计完整、可编辑的 PowerPoint 演示文稿。
 
-项目名称为 `academicppt-workflow`，发布在 [fang628/pptskill](https://github.com/fang628/pptskill)；skill 名称仍为 `pptx-workflow`，调用入口为 [SKILL.md](SKILL.md)。
+项目名称为 `academicppt-workflow`，发布在 [fang628/customizable-pptx-workflow](https://github.com/fang628/customizable-pptx-workflow)；skill 名称仍为 `pptx-workflow`，调用入口为 [SKILL.md](SKILL.md)。
 
 ## 工作流程
 
@@ -20,7 +20,7 @@
 将仓库克隆到 Codex 的 skills 目录，目录名保留 `pptx-workflow`。Windows PowerShell 示例：
 
 ```powershell
-git clone https://github.com/fang628/pptskill.git "$env:USERPROFILE\.codex\skills\pptx-workflow"
+git clone https://github.com/fang628/customizable-pptx-workflow.git "$env:USERPROFILE\.codex\skills\pptx-workflow"
 ```
 
 若该目录已有 skill，请在已有目录中使用 Git 更新，避免覆盖现有文件。
