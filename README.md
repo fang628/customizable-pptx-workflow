@@ -51,4 +51,4 @@ python stages/00-init/scripts/init_project.py D:\Projects\my-presentation
 | `tests/` | 现有工作流测试 |
 | `package.json` / `package-lock.json` | Node.js 依赖及版本锁定 |
 
-依赖目录、缓存、凭据和 `work/` 临时产物由 `.gitignore` 排除，不随仓库发布。
+依赖目录、缓存、测试覆盖率报告、凭据和 `work/` 临时产物由 `.gitignore` 排除，不随仓库发布。误初始化到仓库根目录的 PPT 项目目录（`00_intake/` 至 `08_speaker-notes/`）、状态与运行锁也被排除；建议把制作项目放在仓库外，例如 `D:\Projects\my-presentation`。skill 自带的参考图、模板、测试和 `package-lock.json` 保留版本管理。

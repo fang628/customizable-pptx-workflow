@@ -2,6 +2,9 @@
 node_modules/
 .venv/
 venv/
+env/
+.npm/
+.cache/
 
 # Python caches
 __pycache__/
@@ -9,13 +12,35 @@ __pycache__/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
 
 # Local work products
 /work/
 /outputs/
+/tmp/
+/temp/
 *.log
 *.tmp
 *.bak
+*.swp
+*.swo
+*~
+
+# Presentation projects accidentally initialized in the skill root
+/00_intake/
+/01_inventory/
+/02_design/
+/03_concepts/
+/04_full-preview/
+/05_reconstruction/
+/06_build/
+/07_delivery/
+/08_speaker-notes/
+/workflow-state.json
+/workflow.lock
 
 # Credentials and local configuration
 .env
@@ -23,6 +48,12 @@ __pycache__/
 !.env.example
 *.pem
 *.key
+*.p12
+*.pfx
+.npmrc
+.pypirc
+credentials.json
+secrets.json
 
 # Editor and OS files
 .idea/
