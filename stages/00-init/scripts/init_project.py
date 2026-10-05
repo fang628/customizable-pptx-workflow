@@ -106,12 +106,12 @@ def main() -> int:
 
     image_config = {
         "version": 1,
-        "provider": "vsakura",
-        "model": "gpt-image-2",
-        "credentialEnv": "VSAKURA_API_KEY",
+        "provider": "",
+        "model": "",
+        "credentialEnv": "",
         "credentialsReady": False,
         "allowReferenceUpload": False,
-        "referenceImageLimit": 3,
+        "referenceImageLimit": 0,
         "adapterScript": "",
         "adapterPython": "",
         "adapterArguments": {
@@ -123,7 +123,7 @@ def main() -> int:
             "outputDir": "--output-dir",
             "image": "--image",
         },
-        "notes": "默认模型 gpt-image-2（VSAKURA 通道，OpenAI 兼容 Images API；不支持 seed，任务里不要写 seed）。阶段 1.1 必须向用户确认供应商、模型、凭据状态和参考图上传许可；未确认前不得生成。生图不设次数预算，鼓励多尝试，费用按供应商定价估算并向用户说明。",
+        "notes": "生图配置默认置空。阶段 1.1 必须询问并按用户确认填写供应商、模型、凭据环境变量与就绪状态、适配脚本、参考图上传许可与上限；未确认前不得生成。推荐 GPT Image 2.0 或以上版本，不自动选择供应商或模型。生图不设次数预算，鼓励多尝试，费用按供应商定价估算并向用户说明。",
     }
     write_if_missing(
         project / "00_intake/ai-image-config.json",
