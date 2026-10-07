@@ -35,6 +35,10 @@ def _default_script(provider):
 
 
 def resolve_script(config, override=None):
+    if config.get("provider") == "imagegen":
+        if override or config.get("adapterScript"):
+            raise ValueError("内置 imagegen 不接受 CLI 脚本覆盖；更换通道须先更新并确认配置")
+        return Path(__file__).with_name("builtin_imagegen.py")
     value = override or config.get("adapterScript")
     if value:
         path = Path(value).expanduser().resolve()
@@ -52,6 +56,8 @@ def resolve_script(config, override=None):
 
 def build_command(config, request, python=None, script_override=None):
     """Build a provider CLI command from the configured argument mapping."""
+    if config.get("provider") == "imagegen":
+        raise ValueError("内置 imagegen 必须由代理调用 image_gen 工具，随后用 --import-result 登记；不能通过 CLI 调用或静默切换 API")
     script = resolve_script(config, script_override)
     arguments = {**DEFAULT_ARGUMENTS, **config.get("adapterArguments", {})}
     executable = config.get("adapterPython") or python or sys.executable

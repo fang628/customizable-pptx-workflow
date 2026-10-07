@@ -362,6 +362,7 @@ class WorkflowTests(unittest.TestCase):
     def configure_mock_provider(self):
         config_path = self.project / "00_intake/ai-image-config.json"
         config = read_json(config_path)
+        config.update(provider="mock", model="mock-image-1", credentialEnv="MOCK_IMAGE_API_KEY")
         config["credentialsReady"] = True
         config["adapterScript"] = str(ROOT / "tests/mock_imagegen.py")
         write_json(config_path, config)
@@ -985,13 +986,15 @@ class WorkflowTests(unittest.TestCase):
                         break
         self.assertEqual(offenders, [])
 
-    def test_initial_image_config_requires_user_selection(self):
+    def test_initial_image_config_defaults_to_builtin_without_approval(self):
         config = read_json(self.project / "00_intake/ai-image-config.json")
-        for field in ("provider", "model", "credentialEnv", "adapterScript"):
-            self.assertEqual(config[field], "")
+        self.assertEqual(config["provider"], "imagegen")
+        self.assertEqual(config["model"], "builtin-auto")
+        self.assertEqual(config["credentialEnv"], "")
+        self.assertEqual(config["adapterScript"], "")
         self.assertFalse(config["credentialsReady"])
         self.assertFalse(config["allowReferenceUpload"])
-        self.assertEqual(config["referenceImageLimit"], 0)
+        self.assertEqual(config["referenceImageLimit"], 3)
         self.assertTrue(ai_image_config_errors(self.project))
 
     def test_init_additive_and_chinese(self):
@@ -1711,6 +1714,7 @@ class WorkflowTests(unittest.TestCase):
         config_path = self.project / "00_intake/ai-image-config.json"
         config = read_json(config_path)
         config.update({
+            "provider": "mock", "model": "mock-image-1", "credentialEnv": "MOCK_IMAGE_API_KEY",
             "credentialsReady": True,
             "adapterScript": str(ROOT / "tests/mock_imagegen.py"),
             "stageBudgets": {"1.2": 0, "2.1": 0, "2.2": 0},
@@ -2719,6 +2723,8 @@ class WorkflowTests(unittest.TestCase):
 
         jobs_path = self.project / "03_concepts/generation-jobs.json"
         jobs = self.preview_jobs("2.1", "a")
+        for item in jobs:
+            item["prompt"] = item["prompt"].replace("分组、箭头和图文对应反映真实关系", "分组和图文对应反映真实关系")
         write_json(jobs_path, {"jobs": jobs})
         failures = preview_prompt_errors(self.project, "2.1")
         self.assertTrue(any("没有写页内逻辑关系" in item for item in failures), failures)

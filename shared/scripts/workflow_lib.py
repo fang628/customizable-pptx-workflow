@@ -15,7 +15,7 @@ import xml.etree.ElementTree as ET
 
 from jsonschema import Draft202012Validator
 from PIL import Image
-from preview_originals import insertion_errors
+from preview_originals import insertion_errors, local_frame_errors
 from asset_cutout import cutout_transform, edge_transform
 from imagegen_adapter import resolve_script
 from preview_images import asset_image_errors, image_errors, stage_preview_errors
@@ -955,7 +955,7 @@ def ai_image_config_errors(project, require_ready=True):
     if errors:
         return errors
     if require_ready and not config["credentialsReady"]:
-        errors.append("AI 生图凭据尚未标记为就绪；阶段 1.1 必须先向用户确认")
+        errors.append("内置生图工具尚未标记为就绪；阶段1.1须确认工具可用性" if config.get("provider") == "imagegen" else "AI 生图凭据尚未标记为就绪；阶段 1.1 必须先向用户确认")
     try:
         resolve_script(config)
     except (OSError, ValueError, TypeError) as exc:
@@ -1256,10 +1256,13 @@ def generation_ledger_errors(project, stage, config=None, jobs=None):
             errors.append(f"{identifier} 账本供应商与配置不一致")
         if record.get("model") != config.get("model"):
             errors.append(f"{identifier} 账本模型与配置不一致")
-        request_id = record.get("request_id")
+        request_id = (record.get("tool_call_id") or (record.get("tool_result_id"), record.get("raw_sha256"))) if config.get("provider") == "imagegen" else record.get("request_id")
         if request_id in request_ids:
-            errors.append(f"{identifier} 的 request_id 与其他任务重复")
+            errors.append(f"{identifier} 的生成调用编号与其他任务重复")
         request_ids.add(request_id)
+        if config.get("provider") == "imagegen":
+            from builtin_imagegen import receipt_errors
+            errors += receipt_errors(project, job, record)
         expected_prompt_hash = hashlib.sha256(job["prompt"].encode("utf-8")).hexdigest()
         if record.get("prompt_sha256") != expected_prompt_hash:
             errors.append(f"{identifier} 的提示词哈希与当前任务不一致")
@@ -1685,7 +1688,7 @@ def preview_pages_errors(project, stage, option=None):
             continue
         if record.get("status") != "complete":
             errors.append(f"{page['id']} 的整页预览任务 {page['jobId']} 尚未成功完成")
-        elif record.get("sha256") != (page.get("providerSha256") if stage == "2.2" else page["sha256"]):
+        elif record.get("sha256") != (page.get("providerSha256") if stage == "2.2" or page.get("localPlaceholderRepairs") else page["sha256"]):
             errors.append(
                 f"{page['id']} 的整页预览与账本记录的哈希不一致：{page['file']}"
                 "（阶段 2.1 核对预览；阶段 2.2 核对插图前的 AI 原始页）"
@@ -1746,6 +1749,10 @@ def preview_pages_errors(project, stage, option=None):
             errors += insertion_errors(project, page, plan_by_slide.get(page["id"]), record)
             if not str(page.get("review") or "").strip():
                 errors.append(f"{page['id']} 原图插入后尚未登记逐页实际看图结论 review")
+        if stage == "2.1" and page.get("localPlaceholderRepairs"):
+            if record.get("output") != page.get("providerFile"):
+                errors.append(f"{page['id']} 本地修框的原页来源与账本不一致")
+            errors += local_frame_errors(project, page, plan_by_slide.get(page["id"]), concept=True)
         errors += placeholder_errors(
             project, page, plan_by_slide.get(page["id"]), job,
             page_type=page_type.get(page["id"])

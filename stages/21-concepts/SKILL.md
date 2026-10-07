@@ -5,6 +5,8 @@ description: "依据设计稿建立三种不同视觉方向，用 AI 直接按�
 
 # 阶段 2.1：三版视觉方向（AI 整页预览）
 
+生图默认通过imagegen内置工具；外部接口仅在用户明确选择时使用。调用与结果登记统一按[生图通道契约](../../shared/image-generation.md)。
+
 职责、底图术语、页型例外、原生文字与返工路由统一见[阶段边界与返工路由](../../shared/artifact-contract.md#阶段边界与返工路由)。
 
 设计选择与数值判断统一按[设计判断与检查提示](../../shared/design-principles.md)执行；内容逻辑与可读性优先。
@@ -31,16 +33,17 @@ description: "依据设计稿建立三种不同视觉方向，用 AI 直接按�
 - 每页一条生图任务：任务写进 `03_concepts/generation-jobs.json`，真实调用记录写进 `generation-ledger.json`；规范化输出固定为 `03_concepts/assets/GEN-###.png`，再把同一张图放到对应方案的 `03_concepts/option-<x>/<Sxx>.png`。
 - **没有骨架图中转稿**：每一页都直接按设计稿生成。封面和目录给「该方向原底图（`hero-image`／`toc-image`）＋单页设计稿」，在原底图上构建，不画图片占位框，按[原底图构建契约](../../shared/preview-contract.md#封面与目录的原底图构建)；不提供分块示意图；可放已获准的旧稿代表页或已生成的同类预览作风格参考。分区及全部文本框、其他图形元素由提示词详细说明。
 - 不运行分块参考复制作为预览前置步骤，不把分块参考图加入 references；提示词提取、同一套配色、占位图与上传要求统一见[生图提示词口径](../13-design/references/gen-prompt-scope.md)，promptSummary 记录实际采用的设计信息。
-- 先 dry-run 自检任务和提示词，再 execute；机检项目见生图提示词口径，不在此重复。
+- 先dry-run自检任务和提示词，再按通道契约调用工具并登记；机检项目见生图提示词口径，不在此重复。
 - 提示词登记：本阶段所有生图任务的提示词都要写进 `02_design/generation-prompts.md` 的「## 阶段 2.1」小节（逐任务写 id、素材编号、用途、参考图（风格参考、获准材料或返工原页）与提示词全文）。
 - 生成后逐页登记 `03_concepts/option-<x>/preview.json`（结构见 `shared/schemas/preview-pages.schema.json`）：`id`、`file`、`jobId`、`sha256`、`promptSummary`（除封面／目录外的计划图片页还要写 `placeholders`），可补 `iterations`、`review`。`complete 2.1` 会逐条核对：文件存在且为 1920×1080、阶段 2.1 的预览哈希／阶段 2.2 的 AI 原始页哈希与账本一致、任务元数据绑定页面，提示词不写内部任务页面绑定与分块方式／形态、文字的语义角色、逐张图片位比例、占位块位置与比例与图片计划一致（占位框换算的宽高比与登记原件默认相对偏差容差为 12%；多次修订后的有限放宽见比例契约）。
 
 ```powershell
 python <skill>/stages/21-concepts/scripts/run_generation.py <project> --stage concepts
+# 仅用户明确选择并配置外部CLI通道后执行；默认内置模式见生图通道契约
 python <skill>/stages/21-concepts/scripts/run_generation.py <project> --stage concepts --execute
 ```
 
-先 dry-run 核对供应商、模型、适配脚本与任务清单，再显式 `--execute`。生图不设次数预算：效果不理想就用 `edit_source` 生图编辑、改提示词重生成或追加候选，淘汰的候选同样保留登记与原因。**被退回或需要修改的整页预览必须用图生图改原图**：把被退回的那张图放进任务的 `references`（或用 `edit_source` 指向本地 `GEN-###`），提示词写明保留什么、改什么，在该图基础上重绘；不得重新文生图从头生成。
+先dry-run检查任务，再按通道契约调用内置工具并登记结果；`--execute`仅用于已确认的外部CLI。生图不设次数预算：效果不理想就用 `edit_source` 生图编辑、改提示词重生成或追加候选，淘汰的候选同样保留登记与原因。除下文多轮失败后的本地空白图框修正外，被退回或需要修改的整页预览用图生图改原图：把被退回的那张图放进任务的 `references`（或用 `edit_source` 指向本地 `GEN-###`），提示词写明保留什么、改什么，在该图基础上重绘；不得重新文生图从头生成。
 
 ## 视觉基准与构图比较
 
@@ -68,7 +71,7 @@ python <skill>/stages/21-concepts/scripts/run_generation.py <project> --stage co
 
 ## 方案闸门
 
-三版分别存入 `03_concepts/option-a`、`option-b`、`option-c`。把供应商、模型、请求编号、提示词哈希、原始／规范化输出哈希、种子、采用或淘汰的 `GEN-###`、`edit_source` 编辑关系写入 `03_concepts/prompts/` 与 `generation-ledger.json`。
+三版分别存入 `03_concepts/option-a`、`option-b`、`option-c`。把通道、模型路由、真实调用编号、提示词哈希、原始／规范化输出哈希、种子、采用或淘汰的 `GEN-###`、`edit_source` 编辑关系写入 `03_concepts/prompts/` 与 `generation-ledger.json`。
 
 填写 `03_concepts/concept-review.md`：各方案的气质、视觉系统、结构图形语汇、生成与挑选过程、优点、风险、照片保真与预计可编辑程度。向用户展示三版全部代表页并询问选择或修改意见，状态置为 `awaiting_user`；在用户明确确认前不得生成整套预览。确认后用 `workflow.py approve concept --option <a|b|c> --evidence "实际确认记录"` 记录，再 `complete 2.1`，加载[完整预览子 skill](../22-full-preview/SKILL.md)。不得伪造确认。
 
@@ -83,3 +86,6 @@ python <skill>/stages/21-concepts/scripts/run_generation.py <project> --stage co
 逐页实看还须核对[每页配图与并列文字拆分要求](../../shared/design-principles.md)：每页都有内容相关配图，多段并列文字各有独立文本框；发现缺图或合并大文本框时修订后复看。
 
 占位框经过多次实际修订仍有小幅比例偏差时，执行[有限放宽规则](../../shared/preview-contract.md#多次比例修订后的有限放宽)：默认 12%，至少两轮修订并实际看图、记录 aspectReview 后可放宽至 15%；不为可接受的小幅偏差反复生图，原图等比、信息完整与可读性要求仍须满足。
+
+
+同一图片位多轮比例修订仍无效时，允许[本地修正空白图框](../../shared/preview-contract.md#多次修订后的本地空白图框修正)，不再为框比例反复生图；保留原页与账本，修正后同步实际框位、插图并逐页复看。

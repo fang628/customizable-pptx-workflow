@@ -88,7 +88,6 @@ def _record_is_traceable(record):
         "key",
         "provider",
         "model",
-        "request_id",
         "prompt_sha256",
         "adapter_script_sha256",
         "raw_path",
@@ -101,6 +100,7 @@ def _record_is_traceable(record):
         isinstance(record, dict)
         and record.get("status") == "complete"
         and required.issubset(record)
+        and bool(record.get("tool_result_id") if record.get("provider") == "imagegen" else record.get("request_id"))
     )
 
 
@@ -321,7 +321,7 @@ def _run_attempt(
         return detail
 
 
-def execute(project, stage_name, script_override, python, run, timeout, attempts=8, job_ids=None):
+def execute(project, stage_name, script_override, python, run, timeout, attempts=8, job_ids=None, import_result=None):
     stage = STAGE_INFO[stage_name]
     # Missing planned source images stay visible as placeholders in the preview
     # and are rejected by the preview approval gate, not by asset generation.
@@ -415,6 +415,15 @@ def execute(project, stage_name, script_override, python, run, timeout, attempts
         ],
     }
     print(json.dumps(summary, ensure_ascii=False, indent=2))
+    if config.get("provider") == "imagegen":
+        if import_result:
+            from builtin_imagegen import import_result as import_builtin_result
+            import_builtin_result(project, stage, planned, ledger, ledger_path, config, script, import_result)
+        elif run:
+            raise ValueError("内置 imagegen 由代理调用 image_gen 工具；先执行自检，再调用工具，最后 --import-result 登记真实返回图。外部 API 仅用户明确选择时使用")
+        return
+    if import_result:
+        raise ValueError("--import-result 仅用于内置 imagegen；外部 CLI 仍用 --execute")
     if not run:
         return
 
@@ -478,7 +487,9 @@ if __name__ == "__main__":
         help="Legacy alias for --adapter-script.",
     )
     parser.add_argument("--python", default=sys.executable)
-    parser.add_argument("--execute", action="store_true")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--execute", action="store_true")
+    mode.add_argument("--import-result", help="内置工具真实结果回执JSON路径；登记图片，不发起生图")
     parser.add_argument("--job", action="append", help="只运行指定任务，可重复；保留清单中的历史图生图来源")
     parser.add_argument("--timeout", type=int, default=300)
     parser.add_argument(
@@ -504,6 +515,7 @@ if __name__ == "__main__":
                 args.timeout,
                 args.attempts,
                 args.job,
+                args.import_result,
             )
     except (OSError, ValueError, TypeError, KeyError) as exc:
         print(f"错误：{exc}", file=sys.stderr)

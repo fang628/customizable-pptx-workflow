@@ -304,6 +304,110 @@
                 }
               }
             }
+          },
+          "localPlaceholderRepairs": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "imageId",
+                "fromBox",
+                "toBox",
+                "background",
+                "fill",
+                "revisionAttempts",
+                "note"
+              ],
+              "properties": {
+                "imageId": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "fromBox": {
+                  "type": "object",
+                  "required": [
+                    "x",
+                    "y",
+                    "w",
+                    "h"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "x": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "y": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "w": {
+                      "type": "number",
+                      "exclusiveMinimum": 0,
+                      "maximum": 1
+                    },
+                    "h": {
+                      "type": "number",
+                      "exclusiveMinimum": 0,
+                      "maximum": 1
+                    }
+                  }
+                },
+                "toBox": {
+                  "type": "object",
+                  "required": [
+                    "x",
+                    "y",
+                    "w",
+                    "h"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "x": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "y": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "w": {
+                      "type": "number",
+                      "exclusiveMinimum": 0,
+                      "maximum": 1
+                    },
+                    "h": {
+                      "type": "number",
+                      "exclusiveMinimum": 0,
+                      "maximum": 1
+                    }
+                  }
+                },
+                "background": {
+                  "type": "string",
+                  "pattern": "^#[0-9A-Fa-f]{6}$"
+                },
+                "fill": {
+                  "type": "string",
+                  "pattern": "^#[0-9A-Fa-f]{6}$"
+                },
+                "revisionAttempts": {
+                  "type": "integer",
+                  "minimum": 2
+                },
+                "note": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "真实修订过程、确认仅空白框、未伤及其他元素与实际看图结论"
+                }
+              }
+            }
           }
         }
       }

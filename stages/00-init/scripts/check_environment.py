@@ -73,6 +73,7 @@ def main():
                     Path.home() / ".codex/skills/vsakura-imagegen/scripts/vsakura_imagegen.py",
                 ]
                 adapter_script = next((str(path) for path in candidates if path.is_file()), "")
+            builtin = config.get("provider") == "imagegen"
             result["ai_image_config"] = {
                 "path": str(config_path),
                 "valid_json": True,
@@ -80,7 +81,10 @@ def main():
                 "model": config.get("model"),
                 "credentialsReady": config.get("credentialsReady") is True,
                 "credentialEnv": credential_env,
-                "credentialPresent": bool(
+                "executionMode": "builtin-tool" if builtin else "cli",
+                "toolAvailability": "由执行代理检查，终端检查不能证明内置工具可用" if builtin else None,
+                "credentialRequired": not builtin,
+                "credentialPresent": None if builtin else bool(
                     isinstance(credential_env, str)
                     and credential_env
                     and os.environ.get(credential_env)
@@ -89,9 +93,10 @@ def main():
                 "budgetsEnabled": False,
                 "note": "生图不设次数预算；stageBudgets 若存在也仅作兼容保留，脚本忽略其取值。",
                 "adapterScript": adapter_script or None,
-                "adapterScriptExists": bool(adapter_script and Path(adapter_script).expanduser().is_file()),
+                "adapterScriptExists": None if builtin else bool(adapter_script and Path(adapter_script).expanduser().is_file()),
             }
         except (OSError, ValueError, TypeError) as exc:
+            builtin = config.get("provider") == "imagegen"
             result["ai_image_config"] = {
                 "path": str(config_path),
                 "valid_json": False,

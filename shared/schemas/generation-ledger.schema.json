@@ -104,8 +104,14 @@
           "original_size": {
             "type": "array",
             "prefixItems": [
-              { "type": "integer", "minimum": 1 },
-              { "type": "integer", "minimum": 1 }
+              {
+                "type": "integer",
+                "minimum": 1
+              },
+              {
+                "type": "integer",
+                "minimum": 1
+              }
             ],
             "minItems": 2,
             "maxItems": 2
@@ -147,6 +153,26 @@
           "error": {
             "type": "string",
             "minLength": 1
+          },
+          "tool_call_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "tool_model": {
+            "type": "string",
+            "minLength": 1
+          },
+          "tool_receipt_path": {
+            "type": "string",
+            "minLength": 1
+          },
+          "tool_receipt_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "tool_result_id": {
+            "type": "string",
+            "minLength": 1
           }
         },
         "allOf": [
@@ -163,7 +189,6 @@
                 "key",
                 "provider",
                 "model",
-                "request_id",
                 "prompt_sha256",
                 "adapter_script_sha256",
                 "raw_path",
@@ -171,6 +196,43 @@
                 "output",
                 "sha256"
               ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "const": "complete"
+                },
+                "provider": {
+                  "const": "imagegen"
+                }
+              },
+              "required": [
+                "status",
+                "provider"
+              ]
+            },
+            "then": {
+              "required": [
+                "tool_receipt_path",
+                "tool_receipt_sha256",
+                "tool_result_id"
+              ]
+            },
+            "else": {
+              "if": {
+                "properties": {
+                  "status": {
+                    "const": "complete"
+                  }
+                }
+              },
+              "then": {
+                "required": [
+                  "request_id"
+                ]
+              }
             }
           }
         ]

@@ -121,12 +121,12 @@ def main() -> int:
 
     image_config = {
         "version": 1,
-        "provider": "",
-        "model": "",
+        "provider": "imagegen",
+        "model": "builtin-auto",
         "credentialEnv": "",
         "credentialsReady": False,
         "allowReferenceUpload": False,
-        "referenceImageLimit": 0,
+        "referenceImageLimit": 3,
         "adapterScript": "",
         "adapterPython": "",
         "adapterArguments": {
@@ -138,7 +138,7 @@ def main() -> int:
             "outputDir": "--output-dir",
             "image": "--image",
         },
-        "notes": "生图配置默认置空。阶段 1.1 必须询问并按用户确认填写供应商、模型、凭据环境变量与就绪状态、适配脚本、参考图上传许可与上限；未确认前不得生成。推荐 GPT Image 2.0 或以上版本，不自动选择供应商或模型。生图不设次数预算，鼓励多尝试，费用按供应商定价估算并向用户说明。",
+        "notes": "默认使用 imagegen skill 的内置 image_gen 工具，无需 API Key；builtin-auto 是工具路由标记，不是实际模型名称。阶段1.1确认工具可用性、用户需求及参考图许可后标记就绪。仅用户明确选择外部 CLI/API 时才配置供应商、模型、密钥和适配脚本；内置工具不可用时不得静默切换。",
     }
     write_if_missing(
         project / "00_intake/ai-image-config.json",

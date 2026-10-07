@@ -5,6 +5,8 @@ description: "按确认方向生成整套 1920×1080 AI 底稿，本地插入全
 
 # 阶段 2.2：完整预览（AI 整页生成）
 
+生图默认通过imagegen内置工具；外部接口仅在用户明确选择时使用。调用与结果登记统一按[生图通道契约](../../shared/image-generation.md)。
+
 职责、底图术语、页型例外、原生文字与返工路由统一见[阶段边界与返工路由](../../shared/artifact-contract.md#阶段边界与返工路由)。
 
 设计选择与数值判断统一按[设计判断与检查提示](../../shared/design-principles.md)执行；内容逻辑与可读性优先。
@@ -42,12 +44,13 @@ description: "按确认方向生成整套 1920×1080 AI 底稿，本地插入全
 - 每一页都用 AI 生成一张整页预览（精确 1920×1080），任务写入 `04_full-preview/generation-jobs.json`，真实调用记录写入 `generation-ledger.json`，规范化输出 `04_full-preview/assets/GEN-###.png`，保留这些 AI 原始输出；本地插入登记原图后，将最终完整预览保存到 `04_full-preview/slides/<Sxx>.png`，不得覆盖原始输出。
 - **没有骨架图中转稿**：每一页都直接按设计稿生成。封面和目录给「该方向原底图（`hero-image`／`toc-image`）＋单页设计稿」，在原底图上构建，不画图片占位框，按[原底图构建契约](../../shared/preview-contract.md#封面与目录的原底图构建)；分区及所有文本框、其他图形元素用提示词详细说明，不提供分块参考图。
 - 不运行分块参考复制作为预览前置步骤，不把分块参考图加入 references；提示词提取、同一套配色、占位图与上传要求统一见[生图提示词口径](../13-design/references/gen-prompt-scope.md)，promptSummary 记录实际采用的设计信息。
-- 先 dry-run 自检任务和提示词，再 execute；机检项目见生图提示词口径，不在此重复。
+- 先dry-run自检任务和提示词，再按通道契约调用工具并登记；机检项目见生图提示词口径，不在此重复。
 - 提示词登记：本阶段所有生图任务的提示词都要写进 `02_design/generation-prompts.md` 的「## 阶段 2.2」小节（逐任务写 id、素材编号、用途、参考图（风格参考、获准材料或返工原页）与提示词全文）。
 - 逐页登记 `04_full-preview/previews.json`：`stage`、`styleDirection`、`styleConstraints`、`pages[]`（`id`、`file`、`jobId`、`sha256`、`promptSummary`，除封面／目录外的计划图片页还要写 `placeholders`），必须按 `content.json` 的顺序覆盖全部页面；`complete 2.2` 会核对页序、1920×1080、最终预览哈希与文件一致、AI 原始页哈希与账本一致、提示词任务页面绑定／分块方式与形态／风格约束／文字的语义角色／逐张图片位比例、以及占位块位置与比例（占位框换算的宽高比与登记原件默认相对偏差容差为 12%；多次修订后的有限放宽见比例契约）。
 
 ```powershell
 python <skill>/stages/21-concepts/scripts/run_generation.py <project> --stage full
+# 仅用户明确选择并配置外部CLI通道后执行；默认内置模式见生图通道契约
 python <skill>/stages/21-concepts/scripts/run_generation.py <project> --stage full --execute
 ```
 
@@ -83,3 +86,6 @@ python <skill>/stages/21-concepts/scripts/run_generation.py <project> --stage fu
 逐页实看还须核对[每页配图与并列文字拆分要求](../../shared/design-principles.md)：每页都有内容相关配图，多段并列文字各有独立文本框；发现缺图或合并大文本框时修订后复看。
 
 占位框经过多次实际修订仍有小幅比例偏差时，执行[有限放宽规则](../../shared/preview-contract.md#多次比例修订后的有限放宽)：默认 12%，至少两轮修订并实际看图、记录 aspectReview 后可放宽至 15%；不为可接受的小幅偏差反复生图，原图等比、信息完整与可读性要求仍须满足。
+
+
+同一图片位多轮比例修订仍无效时，允许[本地修正空白图框](../../shared/preview-contract.md#多次修订后的本地空白图框修正)，不再为框比例反复生图；保留原页与账本，修正后同步实际框位、插图并逐页复看。

@@ -138,7 +138,7 @@ python <skill>/shared/scripts/workflow.py <project> status
 
 **所有 AI 生图的提示词都要写进 `02_design/generation-prompts.md`**（一个文件，按「## 阶段 1.2／1.3／2.1／2.2」分节，逐个任务写 id、素材编号、用途、参考图与提示词全文）；`complete` 会在 1.2／2.1／2.2 核对该阶段的每个任务都出现在里面。
 
-生图前先读取并验证 `00_intake/ai-image-config.json`。供应商、模型、凭据环境变量、适配脚本、参考图上传许可和 `referenceImageLimit` 必须已经在阶段 1.1 由用户确认；生图不设次数预算，脚本忽略旧配置里的 `stageBudgets`，但费用要按供应商定价向用户估算说明。脚本不得读取或输出密钥值，也不得静默切换供应商、模型或适配脚本。适配器通过配置的 `adapterArguments` 映射到具体供应商命令；初始化时供应商、模型、凭据环境变量和适配脚本均置空，参考图上限为 0；阶段 1.1 集中询问所需 API 配置，收到回答后直接配置凭据接入、项目 JSON 与兼容调用脚本并完成检查；缺脚本时在项目内创建或适配，不要求用户另行安装生图 skill。API 地址按脚本方式配置，密钥使用环境变量或本地隐藏输入。推荐 GPT Image 2.0 或以上版本，不把任何一家视为唯一协议。
+生图前先读取并验证 `00_intake/ai-image-config.json`，默认通道为imagegen内置工具；模式选择、自检、工具调用和真实结果回执统一见[生图通道与结果登记](image-generation.md)。CLI适配参数和密钥只用于用户明确选择的外部接口；不因脚本缺失或尺寸控制需要静默回退。
 
 阶段 2.1／2.2 的 AI 输出是**整页预览**（一页一张 1920×1080 整页设计图），阶段 1.2／1.3 的输出是独立素材。两者都必须给出稳定 `asset_id`，输出必须是 `{stage-dir}/assets/{asset_id}.png`。示例：
 
@@ -150,7 +150,7 @@ python <skill>/shared/scripts/workflow.py <project> status
       "asset_id": "GEN-001",
       "page_id": "S01",
       "prompt": "封面整页预览：\n- **简约要求**：简约仅针对文本框：色块干净、边缘清楚、框内装饰克制；封面、目录和内容页三类底图保留原有主体、层次与细节，复杂底图不做简约化。\n- **紧密排版要求**：分组紧凑有序，减少无用途留白，给文字足够宽度与空间，不以缩小正文换取松散构图。\n- **创意要求**：通过本页实际选定的分区组合、图文呼应或主题结构体现创意，具体做法在下方排版树中展开；不靠特效堆叠或挤压文字实现。\n- **可读性要求**：文字层级清楚、对比充分，正文空间充足；复杂底图通过干净框底和位置安排保障阅读，不为构图或装饰缩小文字。\n- **视觉关系要求**：分组、箭头及图文对应准确表达真实内容关系，阅读顺序明确；不为创意制造错误因果或错误归属。\n- **原图保真要求**：事实照片和数据图不交给模型重画，不拉伸、不替换为近似图；本地等比插入并保留关键主体、坐标轴、图例和单位。无事实原图时说明不适用，底图仍保留已确认主体与细节。\n- **比例要求**：16:9 画布（1920×1080）。\n- **内容要求**：……\n- **排版要求**：按设计稿展开实际分块。\n  - **宏观分块**：主体区域。\n    - **微观子分块**：按实际空间关系展开。\n      - **文字及文本框／图片／装饰**：写各对象实际内容、样式和位置关系。\n- **底图与配图要求**：在已确认原底图上构建，保留主题主体，说明文字与图形关系，不画图片占位框。\n- **风格要求**：主色 #2F5D62，背景与装饰用与所给大图相近的颜色（同一套配色）。\n- **进度条要求**：无进度条。",
-      "model": "gpt-image-2",
+      "model": "builtin-auto",
       "size": "1920x1080",
       "asset_mode": "strict",
       "output": "03_concepts/assets/GEN-001.png",
@@ -174,7 +174,7 @@ python <skill>/shared/scripts/workflow.py <project> status
     "id": "FULL-MOTIF-02-EDIT",
     "asset_id": "GEN-105",
     "prompt": "在保留原六边形节点网络结构的前提下，把配色改为浅蓝白、降低对比并添加半透明层次，无文字、无人物、无标识、无实验数据",
-    "model": "gpt-image-2",
+    "model": "builtin-auto",
     "asset_mode": "preserve",
     "edit_source": {"assetId": "GEN-104", "path": "04_full-preview/assets/GEN-104.png"},
     "output": "04_full-preview/assets/GEN-105.png",
@@ -196,26 +196,30 @@ python <skill>/shared/scripts/workflow.py <project> status
 AI 原始素材不以 16:9 为必要条件；只有整页预览和正式渲染图强制 1920×1080。不得使用 `preview_mode` 或 `preview_background` 等旧字段。
 
 ```powershell
+# 仅用户明确选择并配置外部CLI通道后执行；默认内置模式见生图通道契约
 python <skill>/stages/21-concepts/scripts/run_generation.py <project> --stage content --execute
 python <skill>/stages/21-concepts/scripts/run_generation.py <project> --stage concepts
+# 仅用户明确选择并配置外部CLI通道后执行；默认内置模式见生图通道契约
 python <skill>/stages/21-concepts/scripts/run_generation.py <project> --stage concepts --execute
+# 仅用户明确选择并配置外部CLI通道后执行；默认内置模式见生图通道契约
 python <skill>/stages/21-concepts/scripts/run_generation.py <project> --stage full --execute
 # 仅在排查时显式覆盖，但必须与 ai-image-config.json 的 adapterScript 指向同一脚本：
 python <skill>/stages/21-concepts/scripts/run_generation.py <project> --stage concepts --adapter-script <adapter-script>
 # 示例通道 VSAKURA 的 gpt-image-2 不支持 seed：该通道任务里不要写 seed；--qwen-script 是旧命令兼容别名，不应用于新项目。
 ```
 
-默认只检查并显示任务计划；`--execute` 才调用付费服务。生图不设次数预算，费用需按实际供应商定价估算并向用户说明。每一轮运行会为每个任务重试到成功或达到单任务上限（`--attempts`，默认 8；可用任务的 `max_attempts` 覆盖）；配置类错误（供应商、模型、凭据、适配脚本不一致）立即停止，避免继续计费；失败的任务可以直接再次运行继续重试。相同输入、脚本、素材和输出指纹命中时复用缓存。超时也计入尝试次数，因为供应商可能已经计费。不得切换到未获准供应商。
+默认只检查并显示任务计划；内置模式由代理调用工具后用`--import-result`登记，`--execute`仅用于已确认的外部CLI接口。生图按需尝试；内置工具按账户额度与使用规则，外部接口按供应商定价说明费用。外部CLI每一轮运行会为每个任务重试到成功或达到单任务上限（`--attempts`，默认 8；可用任务的 `max_attempts` 覆盖）；配置类错误（供应商、模型、凭据、适配脚本不一致）立即停止，避免继续计费；失败的任务可以直接再次运行继续重试。相同输入、脚本、素材和输出指纹命中时复用缓存。超时也计入尝试次数，因为供应商可能已经计费。不得切换到未获准供应商。
 
-组装时发现缺少素材或效果不理想，可以直接追加新的独立 `GEN-###` 任务、重新生图并组装；不设次数预算，只需在日志里记录尝试次数与费用估算，并向用户说明本轮大致花费。
+组装时发现缺少素材或效果不理想，可以直接追加新的独立 `GEN-###` 任务、重新生图并组装；不设次数预算，在日志记录实际尝试次数；外部接口另说明费用估算，内置工具不臆测价格。
 
-参考图数量不得超过配置中的 `referenceImageLimit`，且每张须为已登记、获准上传的本地材料；风格参考图也先登记为材料并记录上传许可。`generation-ledger.json` 只保留供应商、模型、请求编号、提示词哈希、适配脚本哈希、原始／规范化输出哈希、规范化记录、次数和状态。中断后的 `in_progress` 不视为成功，已消耗次数保留。同一个项目不要并行运行多个生成器；项目状态变更使用现有项目锁，锁不表示不同生成任务可以安全并行。
+参考图数量不得超过配置中的 `referenceImageLimit`，且每张须为已登记、获准上传的本地材料；风格参考图也先登记为材料并记录上传许可。`generation-ledger.json` 只保留通道、模型路由、真实调用编号与回执（外部CLI为request_id）、提示词哈希、登记器／适配脚本哈希、原始／规范化输出哈希、规范化记录、次数和状态。中断后的 `in_progress` 不视为成功，已消耗次数保留。同一个项目不要并行运行多个生成器；项目状态变更使用现有项目锁，锁不表示不同生成任务可以安全并行。
 
 ### 阶段 1.2 内容与素材清单
 
 按 PPT 要求从已登记材料里选出上屏文字与图片，再按三种设计方向（`styleId` a/b/c）各生成一组候选图片（封面大图、内容页背景底图，有目录页时每个方向各多一张，致谢页复用背景底图），**候选图片统一 16:9（1920×1080）横版，封面大图／目录页大图／背景底图的提示词里要写明 16:9**；最后把文字内容与候选图片编号按叙述顺序写成 `02_design/content-plan.md`（Markdown分级、同级文字同层，真实并列逐段列为子列表，避免无关系堆砌，每张图片配一句说明）。做法见[内容与素材清单](../stages/12-content/SKILL.md)。
 
 ```powershell
+# 仅用户明确选择并配置外部CLI通道后执行；默认内置模式见生图通道契约
 python <skill>/stages/21-concepts/scripts/run_generation.py <project> --stage content --execute
 python <skill>/shared/scripts/workflow.py <project> complete 1.2
 ```
@@ -241,9 +245,9 @@ python <skill>/shared/scripts/workflow.py <project> complete 1.3
 
 ### 阶段 1.3 补充生成素材
 
-设计稿阶段可以在用户允许生图后，补充装饰、纹理、抽象背景、主题纹样、贴合主题的简单图标和具象的说明性插画。使用同一份已确认配置与适配器，先 dry-run 核查供应商、模型、脚本、凭据就绪状态和上传许可，再显式执行。AI 只生成无文字视觉层，不生成需要准确表达的文字、数字或图表；现实风格插画必须标注为“AI 生成示意图”，不得伪装成真实照片、真实人物或实验证据。
+设计稿阶段可以在用户允许生图后，补充装饰、纹理、抽象背景、主题纹样、贴合主题的简单图标和具象的说明性插画。使用同一份已确认配置与适配器，先dry-run核查通道、任务、就绪状态和上传许可，再按[通道契约](image-generation.md)调用内置工具或已确认的外部CLI。AI 只生成无文字视觉层，不生成需要准确表达的文字、数字或图表；现实风格插画必须标注为“AI 生成示意图”，不得伪装成真实照片、真实人物或实验证据。
 
-生成后把原始返回图与规范化图存入 `02_design/generated-assets/`，把实际路径、SHA-256、供应商、模型、请求编号、提示词哈希、种子、`intendedUse` 和 `factualBoundary` 登记到 `02_design/generated-assets.json`。禁止用 Pillow、HTML、CSS 或本地绘图生成候选后伪装成 API 结果。设计阶段素材是后续风格方向的可追溯参考；候选可作为已登记的风格参考复用，不必仅为复用而重新生图；2.1／2.2整页任务仍建立本阶段生成证据。候选作为独立计划图片采用时，沿用原GEN编号并写进图片意图／图片计划；仅新增或编辑独立素材时登记新任务及新GEN编号，保留原来源关系。
+生成后把原始返回图与规范化图存入 `02_design/generated-assets/`，把实际路径、SHA-256、通道、模型路由、真实调用编号、提示词哈希、种子、`intendedUse` 和 `factualBoundary` 登记到 `02_design/generated-assets.json`。禁止用 Pillow、HTML、CSS 或本地绘图生成候选后伪装成 API 结果。设计阶段素材是后续风格方向的可追溯参考；候选可作为已登记的风格参考复用，不必仅为复用而重新生图；2.1／2.2整页任务仍建立本阶段生成证据。候选作为独立计划图片采用时，沿用原GEN编号并写进图片意图／图片计划；仅新增或编辑独立素材时登记新任务及新GEN编号，保留原来源关系。
 
 ## 整页预览生成与组装
 
@@ -368,3 +372,6 @@ image-plan.json、deck-spec.json 的图片元素与 previews.json 的 originals 
 ## 背景与文本框底色协调
 
 底色层级与文字可读性按[设计判断与检查提示](design-principles.md)；本项目分别记录填充色、描边色和实际采用的对比关系。
+
+
+同一图片位多轮比例修订仍无效时，允许[本地修正空白图框](preview-contract.md#多次修订后的本地空白图框修正)，不再为框比例反复生图；保留原页与账本，修正后同步实际框位、插图并逐页复看。

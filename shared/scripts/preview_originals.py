@@ -9,10 +9,57 @@ def sha(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
-def compose(project, provider_file, originals):
+def repair_blank_frames(result, repairs):
+    """Apply only recorded flat blank-frame changes to a derived image."""
+    for item in repairs or []:
+        if item.get('revisionAttempts', 0) < 2 or not str(item.get('note', '')).strip():
+            raise ValueError('本地修框须至少两轮真实修订，并确认仅调整空白框')
+        for field, color in [('fromBox', 'background'), ('toBox', 'fill')]:
+            box = item[field]
+            x, y, w, h = [round(box[k] * scale) for k, scale in
+                         [('x',result.width),('y',result.height),('w',result.width),('h',result.height)]]
+            if x < 0 or y < 0 or w <= 0 or h <= 0 or x+w > result.width or y+h > result.height:
+                raise ValueError('本地空白框修正区域超出画布')
+            result.paste(Image.new('RGB', (w,h), item[color]), (x,y))
+    return result
+
+
+def local_frame_errors(project, page, plan, concept=False):
+    repairs = page.get('localPlaceholderRepairs') or []
+    if not repairs:
+        return []
+    errors = []
+    placeholders = {p['imageId']: p for p in page.get('placeholders', [])}
+    images = {i['id']: i for i in (plan or {}).get('images', [])}
+    seen = set()
+    for repair in repairs:
+        identifier = repair.get('imageId')
+        image = images.get(identifier)
+        placeholder = placeholders.get(identifier)
+        if identifier in seen or not image or not placeholder:
+            errors.append(f'{page["id"]} 本地修框必须逐项对应唯一计划图片与占位框')
+        seen.add(identifier)
+        if image and (repair.get('toBox') != image.get('box') or not placeholder or repair.get('toBox') != placeholder.get('box')):
+            errors.append(f'{page["id"]} 本地修框后的实际框位须与图片计划和占位记录一致')
+    try:
+        provider = project / str(page.get('providerFile', ''))
+        if not provider.is_file() or sha(provider) != page.get('providerSha256'):
+            errors.append(f'{page["id"]} 本地修框必须保留原始供应商图与哈希')
+        elif concept:
+            expected = compose(project, page['providerFile'], [], repairs)
+            with Image.open(project / page['file']) as actual:
+                if actual.convert('RGB').tobytes() != expected.tobytes() or actual.size != expected.size:
+                    errors.append(f'{page["id"]} 本地概念图修正超出登记的空白框区域')
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        errors.append(f'{page["id"]} 本地修框验证失败：{exc}')
+    return errors
+
+
+def compose(project, provider_file, originals, repairs=None):
     project = Path(project)
     with Image.open(project / provider_file) as source:
         result = source.convert('RGB')
+    repair_blank_frames(result, repairs)
     for item in originals:
         box = item['box']
         clear = item.get('clearBox')
@@ -50,7 +97,7 @@ def insertion_errors(project, page, plan, record=None):
         return [f'{prefix} 尚未登记原图插入：需要 providerFile、providerSha256 与 originals']
     if not (project / provider).is_file():
         return [f'{prefix} AI 原始页缺失：{provider}']
-    errors = []
+    errors = local_frame_errors(project, page, plan)
     actual_provider_hash = sha(project / provider)
     if actual_provider_hash != page['providerSha256']:
         errors.append(f'{prefix} AI 原始页哈希已变化')
@@ -80,7 +127,7 @@ def insertion_errors(project, page, plan, record=None):
             errors.append(f'{prefix} 原图必须等比适配，仅按登记 boundaryMask 裁切显示边缘')
     if not errors:
         try:
-            expected = compose(project, provider, originals)
+            expected = compose(project, provider, originals, page.get("localPlaceholderRepairs"))
             with Image.open(project / page['file']) as opened:
                 actual = opened.convert('RGB')
             if actual.size != expected.size or actual.tobytes() != expected.tobytes():
@@ -118,7 +165,7 @@ def insert_pages(project):
         out = project / '04_full-preview/slides' / (page['id']+'.png')
         if out.resolve() == (project / provider).resolve():
             raise ValueError('禁止覆盖 AI 原始输出；slides 必须与 provider assets 分开')
-        updates.append((page, provider, originals, out, compose(project, provider, originals)))
+        updates.append((page, provider, originals, out, compose(project, provider, originals, page.get("localPlaceholderRepairs"))))
     for page, provider, originals, out, result in updates:
         out.parent.mkdir(parents=True, exist_ok=True)
         result.save(out)

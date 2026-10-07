@@ -5,6 +5,8 @@ description: "按 PPT 要求从材料中选出文字与图片内容，生成补�
 
 # 阶段 1.2：内容与素材清单
 
+生图默认通过imagegen内置工具；外部接口仅在用户明确选择时使用。调用与结果登记统一按[生图通道契约](../../shared/image-generation.md)。
+
 设计选择与数值判断统一按[设计判断与检查提示](../../shared/design-principles.md)执行；内容逻辑与可读性优先。
 
 **停机点：无。** 本阶段不暂停：清单写完直接进入 1.3，中途不得结束任务进程。
@@ -33,6 +35,7 @@ description: "按 PPT 要求从材料中选出文字与图片内容，生成补�
 用已确认的配置生成 PPT 需要的图片，走既有生图链路：
 
 ```powershell
+# 仅用户明确选择并配置外部CLI通道后执行；默认内置模式见生图通道契约
 python <skill>/stages/21-concepts/scripts/run_generation.py <project> --stage content --execute
 ```
 

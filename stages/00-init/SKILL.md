@@ -17,7 +17,7 @@ description: "为可编辑 PPTX 项目创建标准目录、模板和流程状态
 python <subskill-dir>/scripts/init_project.py <project-dir>
 ```
 
-初始化器只增加缺失目录和模板，不覆盖已有文件；复制Markdown模板时将指向skill资源的相对链接解析为当前skill的绝对路径，保证项目副本可打开对应规范。迁移到另一台机器时需按新skill根目录更新这些链接；已有用户文件不自动重写。项目外的原始材料保留在原位置；除非用户要求，不自行移动或复制到 `00_intake/materials/`。它会创建默认标注为“待确认”的 `00_intake/ai-image-config.json`，默认预填 `gpt-image-2`（VSAKURA）；阶段 1.1 必须按用户选择修改供应商、模型、凭据环境变量和参考图上传许可，不能把默认值当成用户确认。
+初始化器只增加缺失目录和模板，不覆盖已有文件；复制Markdown模板时将指向skill资源的相对链接解析为当前skill的绝对路径，保证项目副本可打开对应规范。迁移到另一台机器时需按新skill根目录更新这些链接；已有用户文件不自动重写。项目外的原始材料保留在原位置；除非用户要求，不自行移动或复制到 `00_intake/materials/`。它会创建默认标注为“待确认”的 `00_intake/ai-image-config.json`，默认预填 `imagegen`／`builtin-auto`（内置工具，无需密钥）；阶段1.1按[生图通道契约](../../shared/image-generation.md)确认可用性与参考图许可，不能把默认值当成用户确认。
 
 先用本阶段 `scripts/check_environment.py` 检查 Python、Node、字体、渲染器和项目 AI 适配脚本，命令见[执行约定](../../shared/operations.md)。字体检查用 `--font "<族名>"` 给出本项目必须可用的字体族（分别提供正文族与标题族，检查器另核查各族的常规体和粗体字面），缺失时脚本返回非零退出码并把清单写入 `00_intake/font-report.json`；清单同时记录每个字体族的常规体与粗体是否可用。发生字体回退会让预览与交付的字面、字号和换行不一致，必须在阶段 1.1 前换成已安装字体，或明确记录回退方案。该检查只报告环境变量是否存在，不读取或保存密钥，也不证明账号额度可用。依赖声明位于根目录 `package.json` 和 `shared/requirements.txt`；不擅自全局安装。初始化器同时建立机器可读材料、定稿、素材和生成任务清单，不替用户批准需求或方案。
 

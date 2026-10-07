@@ -12,33 +12,115 @@
   ],
   "additionalProperties": false,
   "properties": {
-    "version": { "const": 1 },
-    "provider": { "type": "string", "pattern": "^[a-z][a-z0-9_-]*$" },
-    "model": { "type": "string", "minLength": 1 },
-    "credentialEnv": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$" },
-    "credentialsReady": { "type": "boolean" },
-    "allowReferenceUpload": { "type": "boolean" },
+    "version": {
+      "const": 1
+    },
+    "provider": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_-]*$"
+    },
+    "model": {
+      "type": "string",
+      "minLength": 1
+    },
+    "credentialEnv": {
+      "type": "string"
+    },
+    "credentialsReady": {
+      "type": "boolean"
+    },
+    "allowReferenceUpload": {
+      "type": "boolean"
+    },
     "stageBudgets": {
       "type": "object",
       "description": "已废弃：不再作为生图次数预算使用，保留仅为兼容旧项目文件；脚本忽略其取值。",
-      "additionalProperties": { "type": "integer", "minimum": 0 }
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 0
+      }
     },
-    "referenceImageLimit": { "type": "integer", "minimum": 0, "maximum": 8 },
-    "adapterScript": { "type": "string" },
-    "adapterPython": { "type": "string" },
+    "referenceImageLimit": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 8
+    },
+    "adapterScript": {
+      "type": "string"
+    },
+    "adapterPython": {
+      "type": "string"
+    },
     "adapterArguments": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "prompt": { "type": "string", "minLength": 1 },
-        "model": { "type": "string", "minLength": 1 },
-        "size": { "type": "string", "minLength": 1 },
-        "count": { "type": "string", "minLength": 1 },
-        "seed": { "type": "string", "minLength": 1 },
-        "outputDir": { "type": "string", "minLength": 1 },
-        "image": { "type": "string", "minLength": 1 }
+        "prompt": {
+          "type": "string",
+          "minLength": 1
+        },
+        "model": {
+          "type": "string",
+          "minLength": 1
+        },
+        "size": {
+          "type": "string",
+          "minLength": 1
+        },
+        "count": {
+          "type": "string",
+          "minLength": 1
+        },
+        "seed": {
+          "type": "string",
+          "minLength": 1
+        },
+        "outputDir": {
+          "type": "string",
+          "minLength": 1
+        },
+        "image": {
+          "type": "string",
+          "minLength": 1
+        }
       }
     },
-    "notes": { "type": "string" }
-  }
+    "notes": {
+      "type": "string"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "provider": {
+            "const": "imagegen"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "model": {
+            "const": "builtin-auto"
+          },
+          "credentialEnv": {
+            "const": ""
+          },
+          "adapterScript": {
+            "const": ""
+          },
+          "adapterPython": {
+            "const": ""
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "credentialEnv": {
+            "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+          }
+        }
+      }
+    }
+  ]
 }
