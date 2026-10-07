@@ -33,7 +33,7 @@ description: "按确认方向生成整套 1920×1080 AI 底稿，本地插入全
 
 ## 生图提示词的禁写信息
 
-提示词的Markdown十二项结构与嵌套分块树、禁写几何、参考图与返工要求统一见[生图提示词口径](../13-design/references/gen-prompt-scope.md)；本文件只记录当前阶段的操作。
+提示词的Markdown九项结构与嵌套分块树、禁写几何、参考图与返工要求统一见[生图提示词口径](../13-design/references/gen-prompt-scope.md)；本文件只记录当前阶段的操作。
 
 ## 先把风格锁进设计稿
 

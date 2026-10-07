@@ -325,7 +325,7 @@ def prompt_points(prompt):
 
 
 def prompt_emphasis_errors(prompt):
-    """Require six explicit top-level goals without judging visual aesthetics."""
+    """Check three top-level goals and two required children of style."""
     entries = []
     for line in prompt.splitlines():
         match = re.match(r"^( *)(?:[-+*]|\d+[.)])\s+(.+)$", line)
@@ -334,10 +334,19 @@ def prompt_emphasis_errors(prompt):
     base = min((indent for indent, _ in entries), default=0)
     top = [body for indent, body in entries if indent == base]
     errors = []
-    for label in ("简约要求", "紧密排版要求", "创意要求",
-                  "可读性要求", "视觉关系要求", "原图保真要求"):
+    for label in ("可读性要求", "视觉关系要求", "原图保真要求"):
         if not any(re.match(re.escape(label) + r"[：:]\s*\S", body) for body in top):
             errors.append(f"提示词须单独填写顶层列表项「{label}」，不能仅在内容或其他条目中提及")
+    style_children = []
+    in_style = False
+    for indent, body in entries:
+        if indent == base:
+            in_style = bool(re.match(r"风格要求[：:]", body))
+        elif in_style:
+            style_children.append(body)
+    for label in ("简约要求", "紧密排版要求"):
+        if not any(re.match(re.escape(label) + r"[：:]\s*\S", body) for body in style_children):
+            errors.append(f"提示词的「风格要求」必须含非空子项「{label}」，不能省略或仅在其他条目中提及")
     return errors
 
 

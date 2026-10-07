@@ -52,7 +52,7 @@ project/
 
 ## 生图提示词的禁写信息
 
-提示词十二项结构、禁写几何、参考图与返工要求统一见[生图提示词口径](../stages/13-design/references/gen-prompt-scope.md)；本文件只记录当前阶段的操作。
+提示词九项结构、禁写几何、参考图与返工要求统一见[生图提示词口径](../stages/13-design/references/gen-prompt-scope.md)；本文件只记录当前阶段的操作。
 
 ## 阶段边界与返工路由
 

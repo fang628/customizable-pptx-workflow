@@ -25,7 +25,7 @@ description: "依据设计稿建立三种不同视觉方向，用 AI 直接按�
 
 ## 生图提示词的禁写信息
 
-提示词的Markdown十二项结构与嵌套分块树、禁写几何、参考图与返工要求统一见[生图提示词口径](../13-design/references/gen-prompt-scope.md)；本文件只记录当前阶段的操作。
+提示词的Markdown九项结构与嵌套分块树、禁写几何、参考图与返工要求统一见[生图提示词口径](../13-design/references/gen-prompt-scope.md)；本文件只记录当前阶段的操作。
 
 ## 预览图由 AI 直接生成
 
@@ -57,7 +57,7 @@ python <skill>/stages/21-concepts/scripts/run_generation.py <project> --stage co
 
 ## 提示词口径
 
-按[生图提示词口径](../13-design/references/gen-prompt-scope.md)编写Markdown十二项列表及嵌套分块树，文案和事实身份在三方向间一致。参考图只提供视觉语言，素材采用和背景选择以设计稿为准。
+按[生图提示词口径](../13-design/references/gen-prompt-scope.md)编写Markdown九项列表及嵌套分块树，文案和事实身份在三方向间一致。参考图只提供视觉语言，素材采用和背景选择以设计稿为准。
 
 ## 信息密度与文字配色落实
 

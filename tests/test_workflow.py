@@ -706,9 +706,6 @@ class WorkflowTests(unittest.TestCase):
         return "\n".join([
             "whole-page preview following the selected design: "
             "same blocks, text boxes with the design shapes",
-            "- **简约要求**：简约清楚，文本框色块干净。",
-            "- **紧密排版要求**：紧凑有序，正文空间充足，不压缩文字。",
-            "- **创意要求**：按主题组织分块和图文关系，具体见排版树。",
             "- **可读性要求**：层级清楚，正文空间和对比充分。",
             "- **视觉关系要求**：分组、箭头和图文对应反映真实关系。",
             "- **原图保真要求**：事实原件仅本地等比插入，保留主体与信息。",
@@ -720,7 +717,9 @@ class WorkflowTests(unittest.TestCase):
             "    - **内部子分块**：放置本页元素。",
             f"      - **文字及其独立文本框**：{text_note}",
             f"- **图片占位框比例**：{ratio_point}",
-            f"- **风格要求**：{style_point}",
+            f"- **风格要求**：{style_point} 实际排版有创意，模型可自主优化局部构图。",
+            "  - **简约要求**：简约清楚，文本框色块干净。",
+            "  - **紧密排版要求**：紧凑有序，正文空间充足，不压缩文字。",
             f"- **进度条要求**：{progress_point}",
         ])
 
@@ -2744,15 +2743,19 @@ class WorkflowTests(unittest.TestCase):
 
     def test_prompt_emphasis_requires_separate_nonempty_top_level_items(self):
         from workflow_lib import prompt_emphasis_errors
-        good = "- **简约要求**：色块干净\n- **紧密排版要求**：文字空间充足\n- **创意要求**：主题图文呼应"
+        good = "- **风格要求**：学术清晰，实际排版有创意并允许模型发挥\n  - **简约要求**：色块干净\n  - **紧密排版要求**：文字空间充足"
         good += "\n- **可读性要求**：文字清楚\n- **视觉关系要求**：关系准确\n- **原图保真要求**：原件不重画不拉伸"
         self.assertEqual(prompt_emphasis_errors(good), [])
         for label in ("可读性要求", "视觉关系要求", "原图保真要求"):
             hidden = good.replace(f"- **{label}**", f"  - **{label}**")
             self.assertTrue(any(label in error for error in prompt_emphasis_errors(hidden)))
         self.assertTrue(prompt_emphasis_errors("- **内容要求**：简约、紧密、有创意"))
-        self.assertTrue(prompt_emphasis_errors(good.replace("- **创意要求**", "  - **创意要求**")))
-        self.assertTrue(prompt_emphasis_errors(good.replace("：主题图文呼应", "：")))
+        for label, value in (("简约要求", "色块干净"), ("紧密排版要求", "文字空间充足")):
+            self.assertTrue(prompt_emphasis_errors(good.replace(f"  - **{label}**：{value}", "")))
+            self.assertTrue(prompt_emphasis_errors(good.replace(f"  - **{label}**", f"- **{label}**")))
+            self.assertTrue(prompt_emphasis_errors(good.replace(f"：{value}", "：")))
+        outside_style = good.replace("- **风格要求**", "- **内容要求**")
+        self.assertTrue(prompt_emphasis_errors(outside_style))
 
     def test_preview_prompt_self_check_before_generation(self):
         self.approved_fixture(through="1.3")

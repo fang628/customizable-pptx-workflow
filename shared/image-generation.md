@@ -1,6 +1,6 @@
 # 生图通道与结果登记
 
-本工作流默认使用 `imagegen` skill 的内置 `image_gen` 工具。开工时读取当前安装的该skill（通常在 `~/.codex/skills/.system/imagegen/SKILL.md`），按其内置生成、编辑和保存规则执行；不要复制或修改该skill的脚本。页面提示词仍遵守本工作流的Markdown嵌套排版树与十二项要求，不能因换通道删掉约束。
+本工作流默认使用 `imagegen` skill 的内置 `image_gen` 工具。开工时读取当前安装的该skill（通常在 `~/.codex/skills/.system/imagegen/SKILL.md`），按其内置生成、编辑和保存规则执行；不要复制或修改该skill的脚本。页面提示词仍遵守本工作流的Markdown嵌套排版树与九项要求，不能因换通道删掉约束。
 
 ## 默认配置与就绪
 
