@@ -18,7 +18,7 @@ description: "将报告、论文、实拍照片、宣传图、品牌素材、数
 | 0 | 0 | 建立环境：项目目录骨架、依赖与字体检查、材料登记入口 | `00_intake/`、`01_inventory/` 模板 | — |
 | 1 | 1.1 | 遍历信息：读遍所有材料的文字与图片，询问 PPT 要求（是否需要目录页、**是否需要致谢页，默认不需要**、**是否需要演讲稿，默认不需要**、是否需要顶部进度条、AI 生图配置） | `00_intake/project-brief.md`、`01_inventory/materials.json`、`00_intake/ai-image-config.json` | ✅ 需求与材料确认 |
 | 2 | 1.2 | 选内容：读完全部材料后，按 PPT 要求挑出上屏文字与图片（候选内容宁多勿缺，写材料原文的精炼版本；阶段 1.3 再精简为最终上屏文案），按三种设计方向各生成一组补充图片（每组封面大图＋内容页背景底图，有目录页时每组再多一张，致谢页复用背景底图，**全部横版**），把所有文字内容与候选图片编号按叙述顺序写成一个 Markdown 清单 | `02_design/content-plan.md`、`02_design/image-intent-plan.json`、`02_design/generated-assets.json` | — |
-| 3 | 1.3 | 设计：写一版 Markdown 设计稿——宏观结构＋三种设计风格＋阶段 1 的 PPT 要求；逐页写清归属、宏观版式、标题与说明意图，写下**最终上屏文字**，并按嵌套排版树分级（分块方式→各分块→分块上部／下部／左部／右部／分块内→并列文本逐条）写清每段文字／图片的位置、对应的文本框或图像框及框内小元素装饰；写完停机等用户修改 | `02_design/design-spec.md`、`02_design/content.json`、`02_design/claim-map.json` | ✅ 设计稿复核 |
+| 3 | 1.3 | 设计：写一版 Markdown 设计稿——宏观结构＋三种设计风格＋阶段 1 的 PPT 要求；逐页写清归属、宏观版式、标题与说明意图，写下**最终上屏文字**，并按嵌套排版树分级（分块方式→各分块→分块上部／下部／左部／右部／分块内→并列文本逐条）写清文字关系、位置、具体文案与文段类型，以及图片与图形归属；文本框样式集中在风格要求，特殊分块在风格与分块说明分别交代并保留创意空间；写完停机等用户修改 | `02_design/design-spec.md`、`02_design/content.json`、`02_design/claim-map.json` | ✅ 设计稿复核 |
 | 4 | 2.1 | 三版预览：按设计稿逐项详细描述分区、文本框与图形元素，让 AI 依据设计稿与详细元素提示词为三种风格各生成整页代表页预览，交用户选择用哪种风格 | `03_concepts/option-{a,b,c}/<Sxx>.png`、`03_concepts/option-{a,b,c}/preview.json` | ✅ 方案确认 |
 | 5 | 2.2 | 全篇预览：把选定风格约束补进设计稿，再让 AI 依据设计稿、详细元素提示词与风格约束生成全部页面底稿，本地插入登记原图并应用计划边缘轮廓，逐页查看后交用户确认 | `04_full-preview/slides/`、`04_full-preview/previews.json`、`02_design/image-plan.json` | ✅ 预览批准 |
 | 6 | 3.1–3.3 | 交付：先逐页生成非文字元素识别清单（`05_reconstruction/element-inventory.md`）→从已批准预览图里拆出元素→用 AI 抠图、裁切、SVG 重绘与 PPT 原生图形重建素材→组装成可编辑 PPTX→逐页渲染评审美观度，必要时自由调整元素位置并重新验收（`prepare_review.py` 生成预览/渲染逐页对照图与待审记录，`validate_project.py --mode release` 核对结构、文本与元素完整性；不再做自动逐像素比对） | `05_reconstruction/`、`06_build/deck-spec.json`、`07_delivery/deck.pptx` | 无讲稿时为终点；需要讲稿时继续阶段4 |
@@ -77,7 +77,7 @@ python <skill-dir>/stages/00-init/scripts/init_project.py <project-dir>
 18. 导航文字唯一来源为 sections；进度条排除 title／toc／thanks。重建文本标记 origin: progress，其他文本按 content.json 逐字核验；形态与字段见[共享工件约定](shared/artifact-contract.md)。
 19. 生成页面预览时不提供分块参考图，也不要求复制分块图或建立 split-references.json；参考库仅供设计阶段本地查阅。分区形态和全部文本框／图形元素改由提示词详细说明，具体口径见生图提示词规范。风格参考、获准材料及图生图返工原页仍按各自用途提供，不能与分块示意图混淆。具体流程见[生图提示词口径](stages/13-design/references/gen-prompt-scope.md)。
 20. 在符合内容逻辑、保持可读性的前提下，使用特殊分块的页面数必须严格大于全篇正式总页数的一半，并尽可能多使用。积极采用斜切、弧线以外的创意特殊分块；具体选择统一见[设计判断与检查提示](shared/design-principles.md)。
-21. 多段并列文字逐段拆成子列表，每段使用独立文本框，不能全部放在一个框内；文本框、对齐与装饰按语义和阅读需要选择，同级保持一致；允许复用矩形和无框文字，不强制换形。设计判断统一见 shared/design-principles.md。
+21. 多段并列文字逐段拆成子列表，每段使用独立文本框，并有统领整组的小标题（已有合适标题可复用），不能全部放在一个框内；文本框形状与颜色在风格要求集中说明一次；特殊分块在风格要求说明造型语言，在分块树说明结构，保留合理创意空间；文本框、对齐与装饰按语义和阅读需要选择，同级保持一致；允许复用矩形和无框文字，不强制换形。设计判断统一见 shared/design-principles.md。
 22. 背景、补图、主视觉占比和留白按内容需要决定；数值仅提示复看，不为填满留白生成无用途素材。候选素材操作见[内容与素材清单](stages/12-content/SKILL.md)。
 23. 每一页都必须有图，覆盖全部页型；配图范围与判断统一见[设计判断与检查提示](shared/design-principles.md)，优先登记原件；事实缺口列待补充材料，不生图替代。封面／目录的AI元素底图无需图注，且建议使用不同画面主体，详见[原底图构建契约](shared/preview-contract.md#封面与目录的原底图构建)；其他已用图片配图注，编号 Sxx-CAPTION-01 写入 content.json；来源登记在工件中，无需上屏。
 24. 阶段 1.2 的候选文案与图片编号按叙述顺序写成 content-plan.md；三种方向 a／b／c 的成组候选与提示词登记见[内容与素材清单](stages/12-content/SKILL.md)，候选不等于最终采用。

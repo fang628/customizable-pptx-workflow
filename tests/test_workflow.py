@@ -3062,6 +3062,20 @@ class WorkflowTests(unittest.TestCase):
         self.assertTrue(design_page_plan_errors(content, plan.replace("文本框：", "框：", 1)))
         self.assertTrue(design_page_plan_errors(content, plan.replace("页面目的与阅读逻辑", "遗漏目的", 1)))
 
+    def test_compact_design_accepts_centralized_style_without_per_box_metadata(self):
+        from workflow_lib import design_page_plan_errors, page_textbox_shapes
+        self.sync_contracts()
+        content, plan = self.compact_page_plan()
+        plan = plan.replace("        - **文本框：** 圆角矩形；字号：继承全篇正文；左对齐。\n", "")
+        style = ("## 全篇视觉约定\n"
+                 "- **风格要求：** 正文文本框采用干净浅蓝色块，可用圆角矩形及适合内容的变体；"
+                 "标题28pt、正文18pt。特殊分块采用斜切与波浪组合，曲率可灵活调整。\n")
+        self.assertEqual(design_page_plan_errors(content, style + plan), [])
+        self.assertEqual(page_textbox_shapes(style + plan)[content["slides"][0]["id"]], [])
+        self.assertTrue(design_page_plan_errors(content, style.replace("28pt", "").replace("18pt", "") + plan))
+        first = content["slides"][0]["texts"][0]
+        self.assertTrue(design_page_plan_errors(content, style + plan.replace(f"**文案与角色：** {first["text"]}", "**文案与角色：** 错误文案", 1)))
+
     def test_compact_design_integrates_with_stage_validation_and_global_style(self):
         from workflow_lib import deck_style_errors
         self.approved_fixture(through="1.2")

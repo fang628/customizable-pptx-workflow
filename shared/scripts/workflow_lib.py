@@ -483,6 +483,11 @@ def design_page_plan_errors(content, design_spec):
             if f"- **{label}：**" not in design_spec:
                 errors.append(f"旧版设计稿缺少「{label}」；可改为四项逐页结构，将信息统一写入嵌套排版树")
         return errors
+    centralized_style = "**风格要求：**" in design_spec.split("## 逐页规划", 1)[0]
+    if centralized_style:
+        style = design_spec.split("## 逐页规划", 1)[0]
+        if not re.search(r"\d+(?:\.\d+)?\s*pt", style, re.I):
+            errors.append("集中风格要求未注明角色默认字号pt")
     by_id = {slide["id"]: slide for slide in content["slides"]}
     seen = set()
     for page in pages:
@@ -525,9 +530,9 @@ def design_page_plan_errors(content, design_spec):
             node = line + (following[:stop.start()] if stop else following)
             if str(text.get("text") or "").strip() not in node:
                 errors.append(f"{page_id} 的文字 {identifier} 最终文案未写入对应对象或与content.json不一致")
-            if "文本框：" not in node:
+            if not centralized_style and "文本框：" not in node:
                 errors.append(f"{page_id} 的文字 {identifier} 未写明文本框形状／无文本框")
-            if not re.search(r"\d+(?:\.\d+)?\s*pt|字号[^\n]*继承全篇", node, re.I):
+            if not centralized_style and not re.search(r"\d+(?:\.\d+)?\s*pt|字号[^\n]*继承全篇", node, re.I):
                 errors.append(f"{page_id} 的文字 {identifier} 未注明字号pt或继承全篇角色字号")
     for identifier in set(by_id) - seen:
         errors.append(f"逐页规划缺少页面：{identifier}")
@@ -560,13 +565,16 @@ def page_logic_arrows(design_spec):
 def page_textbox_shapes(design_spec):
     """设计稿逐页规划里每页声明的文本框形状（含「无文本框」）。"""
     shapes = {}
+    # Centralized styles are checked as a whole; do not turn suggested
+    # silhouettes into per-object gates or require unused role styles.
+    centralized = "**风格要求：**" in design_spec.split("## 逐页规划", 1)[0]
     plan = design_spec.split("## 逐页规划", 1)[-1]
     for page in re.split(r"^### ", plan, flags=re.M)[1:]:
         page_id = page.split("：", 1)[0].strip() or "未命名页面"
         section = re.split(r"^## ", page, flags=re.M)[0]
         found = []
         for line in section.splitlines():
-            if "文本框：" not in line or "形状＋" in line:
+            if centralized or "文本框：" not in line or "形状＋" in line:
                 continue
             for token in TEXTBOX_SHAPE_TOKENS:
                 if token in line and token not in found:
@@ -782,7 +790,7 @@ def preview_prompt_errors(project, stage, job_ids=None):
         for shape in shapes.get(page_id, []):
             if shape not in prompt:
                 errors.append(
-                    f"{page_id} 的提示词没有写明文本框形状「{shape}」：文本框形状要照设计稿逐段写明"
+                    f"{page_id} 的提示词没有写明文本框形状「{shape}」：文本框形状在风格要求中集中交代，可按已确认意图合理变化"
                 )
         if arrows.get(page_id) and not any(token in prompt for token in LOGIC_ARROW_TOKENS):
             errors.append(
@@ -1506,7 +1514,7 @@ def design_errors(project):
         errors.append("设计稿的《逐页规划》没有逐页小节（每页以 `### Sxx：标题` 开头）")
     for page in pages:
         page_id = page.split("：", 1)[0].strip() or "未命名页面"
-        if "文本框：" not in page:
+        if "**风格要求：**" not in design_spec.split("## 逐页规划", 1)[0] and "文本框：" not in page:
             errors.append(
                 f"{page_id} 的排版分级没有写明文本框形状：单段文字写「文本框：<形状>」，"
                 "并列文本段落写明整组统一的形状，没有文本框就写「无文本框：文字直接排在画面上」"
@@ -1706,7 +1714,7 @@ def preview_pages_errors(project, stage, option=None):
         prompt_lower = prompt.lower()
         if not any(token in prompt_lower for token in ("文本框", "text box", "textbox")):
             errors.append(
-                f"{page['id']} 的生图任务提示词没有写文本框：每段文字要带上设计稿指定的文本框形状，"
+                f"{page['id']} 的生图任务提示词没有写文本框：文本框形状与配色在风格要求中集中说明，"
                 "或写明「无文本框」"
             )
         cell = split_cells.get(page["id"], "")
