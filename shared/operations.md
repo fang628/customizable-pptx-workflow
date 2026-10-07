@@ -138,7 +138,7 @@ python <skill>/shared/scripts/workflow.py <project> status
 
 **所有 AI 生图的提示词都要写进 `02_design/generation-prompts.md`**（一个文件，按「## 阶段 1.2／1.3／2.1／2.2」分节，逐个任务写 id、素材编号、用途、参考图与提示词全文）；`complete` 会在 1.2／2.1／2.2 核对该阶段的每个任务都出现在里面。
 
-生图前先读取并验证 `00_intake/ai-image-config.json`。供应商、模型、凭据环境变量、适配脚本、参考图上传许可和 `referenceImageLimit` 必须已经在阶段 1.1 由用户确认；生图不设次数预算，脚本忽略旧配置里的 `stageBudgets`，但费用要按供应商定价向用户估算说明。脚本不得读取或输出密钥值，也不得静默切换供应商、模型或适配脚本。适配器通过配置的 `adapterArguments` 映射到具体供应商命令；默认 `gpt-image-2`（VSAKURA）只是预填值，不把任何一家视为唯一协议。
+生图前先读取并验证 `00_intake/ai-image-config.json`。供应商、模型、凭据环境变量、适配脚本、参考图上传许可和 `referenceImageLimit` 必须已经在阶段 1.1 由用户确认；生图不设次数预算，脚本忽略旧配置里的 `stageBudgets`，但费用要按供应商定价向用户估算说明。脚本不得读取或输出密钥值，也不得静默切换供应商、模型或适配脚本。适配器通过配置的 `adapterArguments` 映射到具体供应商命令；初始化时供应商、模型、凭据环境变量和适配脚本均置空，参考图上限为 0；阶段 1.1 集中询问所需 API 配置，收到回答后直接配置凭据接入、项目 JSON 与兼容调用脚本并完成检查；缺脚本时在项目内创建或适配，不要求用户另行安装生图 skill。API 地址按脚本方式配置，密钥使用环境变量或本地隐藏输入。推荐 GPT Image 2.0 或以上版本，不把任何一家视为唯一协议。
 
 阶段 2.1／2.2 的 AI 输出是**整页预览**（一页一张 1920×1080 整页设计图），阶段 1.2／1.3 的输出是独立素材。两者都必须给出稳定 `asset_id`，输出必须是 `{stage-dir}/assets/{asset_id}.png`。示例：
 
@@ -202,7 +202,7 @@ python <skill>/stages/21-concepts/scripts/run_generation.py <project> --stage co
 python <skill>/stages/21-concepts/scripts/run_generation.py <project> --stage full --execute
 # 仅在排查时显式覆盖，但必须与 ai-image-config.json 的 adapterScript 指向同一脚本：
 python <skill>/stages/21-concepts/scripts/run_generation.py <project> --stage concepts --adapter-script <adapter-script>
-# 默认模型 gpt-image-2（VSAKURA）不支持 seed：任务里不要写 seed；--qwen-script 是旧命令兼容别名，不应用于新项目。
+# 示例通道 VSAKURA 的 gpt-image-2 不支持 seed：该通道任务里不要写 seed；--qwen-script 是旧命令兼容别名，不应用于新项目。
 ```
 
 默认只检查并显示任务计划；`--execute` 才调用付费服务。生图不设次数预算，费用需按实际供应商定价估算并向用户说明。每一轮运行会为每个任务重试到成功或达到单任务上限（`--attempts`，默认 8；可用任务的 `max_attempts` 覆盖）；配置类错误（供应商、模型、凭据、适配脚本不一致）立即停止，避免继续计费；失败的任务可以直接再次运行继续重试。相同输入、脚本、素材和输出指纹命中时复用缓存。超时也计入尝试次数，因为供应商可能已经计费。不得切换到未获准供应商。

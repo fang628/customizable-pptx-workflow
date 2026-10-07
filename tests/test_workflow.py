@@ -985,11 +985,14 @@ class WorkflowTests(unittest.TestCase):
                         break
         self.assertEqual(offenders, [])
 
-    def test_default_image_model_is_gpt_image_2(self):
+    def test_initial_image_config_requires_user_selection(self):
         config = read_json(self.project / "00_intake/ai-image-config.json")
-        self.assertEqual(config["provider"], "vsakura")
-        self.assertEqual(config["model"], "gpt-image-2")
-        self.assertEqual(config["credentialEnv"], "VSAKURA_API_KEY")
+        for field in ("provider", "model", "credentialEnv", "adapterScript"):
+            self.assertEqual(config[field], "")
+        self.assertFalse(config["credentialsReady"])
+        self.assertFalse(config["allowReferenceUpload"])
+        self.assertEqual(config["referenceImageLimit"], 0)
+        self.assertTrue(ai_image_config_errors(self.project))
 
     def test_init_additive_and_chinese(self):
         original = self.project / "00_intake/project-brief.md"
