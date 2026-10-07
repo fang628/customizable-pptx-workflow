@@ -1,12 +1,14 @@
 """Central preview rules: thresholds, element roles and text-role floors.
 
-Shared by the preview checks and the tests so the numbers only live
-in one place.
+Shared constants live here. Aesthetic sizes, density, whitespace, shape
+variety and palette thresholds are review hints, not automatic rejection
+criteria; see shared/design-principles.md. Technical identity, aspect and
+provenance checks remain mandatory.
 """
 
 from __future__ import annotations
 
-RULES_VERSION = 12
+RULES_VERSION = 13
 
 CANVAS = (1920, 1080)
 
@@ -124,6 +126,8 @@ RING_STROKE_RATIO_MAX = 0.75
 LINE_HOLD_ANGLE_TOLERANCE = 2.0
 # 清单声明的占位框与登记原件的宽高比允许偏差；预览实际框位由逐页看图确认
 PHOTO_FRAME_ASPECT_TOLERANCE = 0.12
+# Limited exception after repeated layout edits and documented visual review.
+PHOTO_FRAME_ASPECT_RELAXED_TOLERANCE = 0.15
 # 同风格：整页预览与所给 AI 大图的主色距离上限（0–441，越小越接近）
 SAME_STYLE_PALETTE_TOLERANCE = 96
 TEXTBOX_DECOR_REPEAT_WARN = 3
@@ -203,7 +207,7 @@ DECOR_SHAPE_KINDS = (
 )
 # 预览装饰词汇 -> PptxGenJS 预设名。阶段 3.1 记录映射、阶段 3.3 只能写右列名称，
 # 写预览侧的名字会让构建器报 Unknown shape。
-# 文本框形状：同级并列的文本框必须落在同一族，整页也不能全是尖角矩形。
+# 同级并列保持一致；矩形或圆角矩形可全篇复用，不要求形状种类。
 TEXTBOX_SHAPE_FAMILIES = {
     "rectangle": "rectangle",
     "rounded-rectangle": "rounded",

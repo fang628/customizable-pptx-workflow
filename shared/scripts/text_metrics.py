@@ -193,15 +193,21 @@ def text_metrics(element, box_px, size=None):
     size = int(size if size is not None else element["fontSize"])
     font, resolved = resolve_font(font_face, size, bold=wants_bold(font_face))
     lines = wrap_text(_MEASURE, element["text"], font, width)
-    line_spacing = float(element.get("lineSpacing", 1.15))
     heights = []
     widths = []
     for line in lines:
         box = _MEASURE.textbbox((0, 0), line or " ", font=font)
         heights.append(box[3] - box[1])
         widths.append(box[2] - box[0])
-    line_step = round(max(heights or [size]) * line_spacing)
-    total_height = line_step * len(lines)
+    ink_height = max(heights or [size])
+    if element.get("lineSpacing") is not None:
+        # PptxGenJS lineSpacing is absolute points, never a multiplier.
+        declared_px = float(element["fontSize"])
+        declared_pt = float(element.get("fontSizePt", declared_px / 2))
+        line_step = round(float(element["lineSpacing"]) * declared_px / declared_pt)
+    else:
+        line_step = round(ink_height * float(element.get("lineSpacingMultiple", 1.15)))
+    total_height = ink_height + line_step * (len(lines) - 1)
     valign = element.get("valign", "top")
     align = element.get("align", "left")
     if valign == "middle":

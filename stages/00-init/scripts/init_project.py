@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import shutil
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -23,7 +24,6 @@ DIRECTORIES = [
     "01_inventory",
     "02_design",
     "02_design/generated-assets",
-    "02_design/split-references",
     "03_concepts/option-a",
     "03_concepts/option-b",
     "03_concepts/option-c",
@@ -50,7 +50,22 @@ def copy_if_missing(source: Path, destination: Path, created: list[str]) -> None
     if destination.exists():
         return
     destination.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(source, destination)
+    if source.suffix.lower() == ".md":
+        text = source.read_text(encoding="utf-8-sig")
+        def resolve_link(match):
+            label, target = match.group(1), match.group(2)
+            path_part, separator, fragment = target.partition("#")
+            if not path_part or re.match(r"^[a-zA-Z]+:", path_part):
+                return match.group(0)
+            resolved = (source.parent / path_part.strip("<>")).resolve()
+            if not resolved.exists():
+                return match.group(0)
+            absolute = resolved.as_posix() + (separator + fragment if separator else "")
+            return f"[{label}](<{absolute}>)"
+        text = re.sub(r"\[([^\]]*)\]\(([^\n]+?)\)", resolve_link, text)
+        destination.write_text(text, encoding="utf-8")
+    else:
+        shutil.copyfile(source, destination)
     created.append(str(destination))
 
 

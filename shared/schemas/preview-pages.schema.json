@@ -162,6 +162,26 @@
                       "maximum": 1
                     }
                   }
+                },
+                "aspectReview": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "revisionAttempts",
+                    "note"
+                  ],
+                  "description": "至少两轮实际比例修订后，可经实际看图将占位框宽高比容差从12%有限放宽到15%；不放宽原图等比插入、内容完整与可读性。",
+                  "properties": {
+                    "revisionAttempts": {
+                      "type": "integer",
+                      "minimum": 2
+                    },
+                    "note": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "记录真实修改过程、残余偏差、等比插图及可读性检查结论；本地记录，不写入提示词。"
+                    }
+                  }
                 }
               }
             }

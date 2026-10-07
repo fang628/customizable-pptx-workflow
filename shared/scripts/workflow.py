@@ -15,7 +15,7 @@ from workflow_lib import (
     material_errors, now, page_versions, preview_pages_errors,
     read_json, referenced_generation_files, speaker_script_errors,
     schema_errors, stop_point_errors, stop_point_label, stop_point_status,
-    project_lock, write_json,
+    project_lock, write_json, preview_palette_warnings,
 )
 from preview_images import stage_preview_errors
 
@@ -67,6 +67,16 @@ def complete(project, stage):
         # 用户已确认不需要演讲稿：阶段 4 直接跳过并标记完成（交付在 3.3 结束）
     if errors:
         raise ValueError("\n".join(errors))
+    if stage in {"2.1", "2.2"}:
+        manifests = ([(option, project / f"03_concepts/option-{option}/preview.json")
+                      for option in "abc"] if stage == "2.1" else
+                     [(None, project / "04_full-preview/previews.json")])
+        for option, path in manifests:
+            if path.is_file():
+                for message in preview_palette_warnings(
+                    project, stage, option, read_json(path).get("pages", [])
+                ):
+                    print(f"设计复看提示：{message}", file=sys.stderr)
     state = read_json(project / "workflow-state.json")
     state["version"] = 2
     state["updated_at"] = now()

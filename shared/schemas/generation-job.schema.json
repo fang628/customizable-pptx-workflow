@@ -1,7 +1,9 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
-  "required": ["jobs"],
+  "required": [
+    "jobs"
+  ],
   "additionalProperties": false,
   "properties": {
     "max_total_attempts": {
@@ -9,35 +11,68 @@
       "minimum": 1,
       "description": "已废弃：不再作为阶段次数预算使用；每轮运行的重试上限由命令行的 --attempts 控制。"
     },
-    "note": { "type": "string" },
+    "note": {
+      "type": "string"
+    },
     "jobs": {
       "type": "array",
       "minItems": 1,
       "items": {
         "type": "object",
-        "required": ["id", "asset_id", "prompt", "output"],
+        "required": [
+          "id",
+          "asset_id",
+          "prompt",
+          "output"
+        ],
         "additionalProperties": false,
         "properties": {
-          "id": { "type": "string", "pattern": "^[A-Za-z0-9_-]+$" },
+          "id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]+$"
+          },
           "asset_id": {
             "type": "string",
             "pattern": "^GEN-[0-9]{3,}$",
             "description": "独立素材的稳定编号；不同任务不得复用同一编号。"
           },
-          "prompt": { "type": "string", "minLength": 1 },
-          "output": { "type": "string", "minLength": 1 },
-          "model": { "type": "string", "minLength": 1 },
-          "size": { "type": "string", "pattern": "^[1-9][0-9]{2,3}x[1-9][0-9]{2,3}$" },
+          "prompt": {
+            "type": "string",
+            "minLength": 1
+          },
+          "output": {
+            "type": "string",
+            "minLength": 1
+          },
+          "model": {
+            "type": "string",
+            "minLength": 1
+          },
+          "size": {
+            "type": "string",
+            "pattern": "^[1-9][0-9]{2,3}x[1-9][0-9]{2,3}$"
+          },
           "asset_mode": {
-            "enum": ["preserve", "pad", "crop"],
+            "enum": [
+              "preserve",
+              "pad",
+              "crop",
+              "strict"
+            ],
             "default": "preserve",
-            "description": "preserve 保留供应商原始纵横比；pad/crop 仅按明确 asset_size 调整。"
+            "description": "独立素材使用 preserve 或按 asset_size 使用 pad/crop；整页预览只使用 strict，原图非16:9直接退回，不补边不裁切。"
           },
           "asset_size": {
             "type": "array",
             "prefixItems": [
-              { "type": "integer", "minimum": 1 },
-              { "type": "integer", "minimum": 1 }
+              {
+                "type": "integer",
+                "minimum": 1
+              },
+              {
+                "type": "integer",
+                "minimum": 1
+              }
             ],
             "minItems": 2,
             "maxItems": 2
@@ -49,37 +84,72 @@
           "edit_source": {
             "type": "object",
             "description": "生图编辑的输入素材；只能指向同一阶段的 assets/GEN-###.png 稳定路径，被编辑素材必须已存在。",
-            "required": ["assetId", "path"],
+            "required": [
+              "assetId",
+              "path"
+            ],
             "additionalProperties": false,
             "properties": {
-              "assetId": { "type": "string", "pattern": "^GEN-[0-9]{3,}$" },
-              "path": { "type": "string", "minLength": 1 },
-              "note": { "type": "string" }
+              "assetId": {
+                "type": "string",
+                "pattern": "^GEN-[0-9]{3,}$"
+              },
+              "path": {
+                "type": "string",
+                "minLength": 1
+              },
+              "note": {
+                "type": "string"
+              }
             }
           },
-          "seed": { "type": "integer" },
+          "seed": {
+            "type": "integer"
+          },
           "references": {
             "type": "array",
             "maxItems": 8,
             "uniqueItems": true,
-            "items": { "type": "string", "minLength": 1 }
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
           },
           "reference_categories": {
             "type": "array",
-            "items": { "type": "string", "minLength": 1 }
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
           },
           "reference_ids": {
             "type": "array",
-            "items": { "type": "string", "minLength": 1 }
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
           },
           "max_attempts": {
             "type": "integer",
             "minimum": 1,
             "description": "单任务在本轮运行内的最大尝试次数；缺省时使用命令行的 --attempts（默认 8）。不再有用户确认的次数预算。"
           },
-          "intended_use": { "type": "string", "minLength": 1 },
-          "factual_boundary": { "type": "string", "minLength": 1 },
-          "notes": { "type": "string" }
+          "intended_use": {
+            "type": "string",
+            "minLength": 1
+          },
+          "factual_boundary": {
+            "type": "string",
+            "minLength": 1
+          },
+          "notes": {
+            "type": "string"
+          },
+          "page_id": {
+            "type": "string",
+            "pattern": "^S[0-9]+$",
+            "description": "整页任务的本地页面绑定；不得复制到实际生图提示词中。旧任务可从任务 id 解析页面。"
+          }
         }
       }
     }

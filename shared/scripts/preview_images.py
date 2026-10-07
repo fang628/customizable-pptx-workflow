@@ -111,7 +111,7 @@ def normalize_asset(source, output, mode="preserve", size=None, background="#FFF
     }
 
 
-def normalize(source, output, mode="pad", background="#FFFFFF"):
+def normalize(source, output, mode="strict", background="#FFFFFF"):
     """Normalize a raw provider image into a final 1920x1080 preview."""
     source, output = Path(source), Path(output)
     if source.resolve() == output.resolve():
@@ -125,14 +125,9 @@ def normalize(source, output, mode="pad", background="#FFFFFF"):
     original_size = list(image.size)
     image = _opaque(image, background)
     exact = image.width * 9 == image.height * 16
-    if not exact and mode == "strict":
-        raise ValueError(f"原始图不是精确 16:9：{image.width}x{image.height}")
-    if exact or mode == "crop":
-        result = ImageOps.fit(image, (1920, 1080), method=Image.Resampling.LANCZOS)
-    else:
-        fitted = ImageOps.contain(image, (1920, 1080), method=Image.Resampling.LANCZOS)
-        result = Image.new("RGB", (1920, 1080), background)
-        result.paste(fitted, ((1920-fitted.width)//2, (1080-fitted.height)//2))
+    if not exact:
+        raise ValueError(f"整页原图不是精确 16:9，退回：{image.width}x{image.height}；不得裁切或补边修正比例")
+    result = image.resize((1920, 1080), resample=Image.Resampling.LANCZOS)
     output.parent.mkdir(parents=True, exist_ok=True)
     temporary = output.with_suffix(".tmp.png")
     result.save(temporary, format="PNG")

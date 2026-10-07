@@ -194,7 +194,7 @@
         },
         "rotate": {
           "type": "number",
-          "description": "顺时针旋转角度（度）。用于把 `pentagon` 转成直角五边形（`right-pentagon`）等需要转向的原生形状。"
+          "description": "顺时针旋转角度（度）；原生形状按预览方向记录rotate。right-pentagon采用homePlate，不用普通pentagon替代。"
         },
         "allowOverflow": {
           "type": "boolean"
@@ -414,6 +414,16 @@
         },
         "boundaryMask": {
           "$ref": "#/$defs/boundaryMask"
+        },
+        "lineSpacing": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "绝对行距，单位pt。与lineSpacingMultiple同时存在时本字段优先。"
+        },
+        "lineSpacingMultiple": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "行距倍数，例如1.4；不要将倍数填入lineSpacing。"
         }
       },
       "allOf": [

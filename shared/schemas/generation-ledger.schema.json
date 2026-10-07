@@ -101,6 +101,19 @@
             "type": "string",
             "pattern": "^[a-f0-9]{64}$"
           },
+          "original_size": {
+            "type": "array",
+            "prefixItems": [
+              { "type": "integer", "minimum": 1 },
+              { "type": "integer", "minimum": 1 }
+            ],
+            "minItems": 2,
+            "maxItems": 2
+          },
+          "rejection": {
+            "type": "string",
+            "minLength": 1
+          },
           "output": {
             "type": "string",
             "minLength": 1

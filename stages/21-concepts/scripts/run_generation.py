@@ -188,7 +188,7 @@ def _planned_jobs(project, stage, config, script):
     return plan, planned
 
 
-_FATAL_MARKERS = ("适配脚本", "未配置", "凭据", "不一致", "不存在")
+_FATAL_MARKERS = ("适配脚本", "未配置", "凭据", "不一致", "不存在", "不是精确 16:9")
 
 
 def _fatal(detail):
@@ -238,7 +238,7 @@ def _run_attempt(
     try:
         request = {
             "prompt": job["prompt"],
-            "size": job.get("size", "1664x928"),
+            "size": job.get("size", "1920x1080"),
             "output_dir": output_dir,
             "references": item["references"],
         }
@@ -260,10 +260,16 @@ def _run_attempt(
         with Image.open(source) as image:
             image.verify()
         if stage["id"] in {"2.1", "2.2"}:
+            with Image.open(source) as raw_image:
+                raw_size = list(raw_image.size)
+            record.update(raw_path=source.relative_to(project).as_posix(),
+                          raw_sha256=digest(source), original_size=raw_size)
+            if raw_size[0] * 9 != raw_size[1] * 16:
+                record["rejection"] = "供应商整页原图不是精确 16:9，退回；禁止补边或裁切修正"
             conversion = normalize(
                 source,
                 output,
-                job.get("asset_mode", "crop"),
+                job.get("asset_mode", "strict"),
                 job.get("asset_background", "#FFFFFF"),
             )
         else:

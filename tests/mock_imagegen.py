@@ -61,7 +61,7 @@ def placeholder_boxes(prompt):
 
 path = Path(args.output_dir).resolve() / "mock.png"
 path.parent.mkdir(parents=True, exist_ok=True)
-size = (640, 640) if (args.prompt or "").startswith("SQUARE") else (640, 360)
+size = (640, 640) if ((args.prompt or "").startswith("SQUARE") or "RETURN-SQUARE" in (args.prompt or "")) else (640, 360)
 # A subject on a flat background, so cutout and masking stay testable.
 image = Image.new("RGB", size, "#FFFFFF")
 draw = ImageDraw.Draw(image)

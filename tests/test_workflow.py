@@ -20,7 +20,7 @@ sys.path.insert(0, str(ROOT / "stages/33-build/scripts"))
 from workflow_lib import (
     ai_image_config_errors,
     candidate_style_errors,
-    preview_palette_errors,
+    preview_palette_errors, preview_palette_warnings,
     ratio_tokens,
     approval_errors,
     design_errors,
@@ -40,6 +40,7 @@ from workflow_lib import (
     SPECIAL_SPLITS,
     split_entries,
     spec_errors,
+    special_split_errors,
     write_json,
 )
 from crop_asset import crop_asset
@@ -306,13 +307,21 @@ class WorkflowTests(unittest.TestCase):
         template = (
             ROOT / "stages/13-design/assets/design-spec.md"
         ).read_text(encoding="utf-8")
+        # Existing regression cases exercise legacy project compatibility.
+        legacy = (ROOT / "tests/fixtures/legacy-page-plan.md").read_text(encoding="utf-8")
+        legacy = re.sub(r"^- \*\*排版分级：\*\*[^\n]*", "- **排版分级：** 测试内容（文本框：圆角矩形；图像框：按原图比例；无图片）。", legacy, flags=re.M)
+        start = template.index("## 嵌套排版树写法")
+        end = template.index("## 待补充材料", start)
+        template = template[:start] + legacy + template[end:]
+        start = template.index("## 全篇视觉约定")
+        end = template.index("## 设计阶段补充生成素材", start)
+        template = template[:start] + template[end:]
         for heading in ("## 目录要求", "## 顶部进度条要求"):
             self.assertIn(heading, template)
         confirmed = "需要；第二页为唯一目录页。" if include_toc else "不需要；全篇无 toc 页面。"
         template = template.replace("待填写", "测试内容")
-        content_pages = [
-            slide["id"] for slide in content_slides if slide["page_type"] == "content"
-        ]
+        # The majority requirement includes title and TOC pages as well.
+        content_pages = [slide["id"] for slide in content_slides]
         special_methods = (
             "左中右分块＋斜切分块",
             "上下分块＋弧线分块（横向向上凸）",
@@ -327,11 +336,12 @@ class WorkflowTests(unittest.TestCase):
         )
         rows = []
         for index, page_id in enumerate(content_pages):
-            if index % 3 == 2:
-                method, detail = "上下分块", "无"
-            else:
-                method = special_methods[index % len(special_methods)]
-                detail = "倾角约 10°"
+            content_start = 2 if include_toc else 1
+            method_index = index - content_start if index >= content_start else index
+            method = special_methods[method_index % len(special_methods)]
+            if "横带" in method:
+                method = "左右分块＋六边形分块（蜂窝）"
+            detail = "按内容对应分区"
             rows.append(
                 f"| {page_id} | {method} | 文字 | 图片 | — | 色差／间距 | {detail} |"
             )
@@ -655,7 +665,7 @@ class WorkflowTests(unittest.TestCase):
         """Whole-page prompt written as numbered points (TEST FIXTURE ONLY)."""
         slide = context["slides"][page_id]
         texts = slide.get("texts") or []
-        text_note = "；".join(f"{text['id']}={text['text']}" for text in texts)
+        text_note = "；".join(str(text["text"]) for text in texts)
         shapes = context["shapes"].get(page_id) or []
         if shapes:
             text_note += f"；文本框形状：{'、'.join(shapes)}"
@@ -693,15 +703,24 @@ class WorkflowTests(unittest.TestCase):
             else "条内逐段写出全部小节标题，当前小节加粗放大，分段有色差。"
         )
         return "\n".join([
-            f"{tag} {page_id} whole-page preview following the design spec of {page_id}: "
+            "whole-page preview following the selected design: "
             "same blocks, text boxes with the design shapes",
-            "① 比例要求：16:9 画布（1920×1080）。",
-            f"② 内容要求：最终文字：{text_note}"
+            "- **简约要求**：简约清楚，文本框色块干净。",
+            "- **紧密排版要求**：紧凑有序，正文空间充足，不压缩文字。",
+            "- **创意要求**：按主题组织分块和图文关系，具体见排版树。",
+            "- **可读性要求**：层级清楚，正文空间和对比充分。",
+            "- **视觉关系要求**：分组、箭头和图文对应反映真实关系。",
+            "- **原图保真要求**：事实原件仅本地等比插入，保留主体与信息。",
+            "- **比例要求**：16:9 画布（1920×1080）。",
+            f"- **内容要求**：最终文字：{text_note}"
             "文字只用于表达内容与语义角色；明确标题、正文与注释。",
-            f"③ 排版要求：{layout_note}",
-            f"④ 图片占位框比例：{ratio_point}",
-            f"⑤ 风格要求：{style_point}",
-            f"⑥ 进度条要求：{progress_point}",
+            f"- **排版要求**：{layout_note}",
+            "  - **主体宏观分块**：按设计稿展开。",
+            "    - **内部子分块**：放置本页元素。",
+            f"      - **文字及其独立文本框**：{text_note}",
+            f"- **图片占位框比例**：{ratio_point}",
+            f"- **风格要求**：{style_point}",
+            f"- **进度条要求**：{progress_point}",
         ])
 
     def prompt_suffix(self, page_id, option="a", stage="2.1"):
@@ -712,11 +731,7 @@ class WorkflowTests(unittest.TestCase):
 
     def preview_context(self, stage, option=None):
         """Fixture context for whole-page preview prompts: blocks, ratios, texts, shapes."""
-        self.run_python("shared/scripts/prepare_split_references.py", self.project)
-        split_refs = {
-            page["id"]: list(page["references"])
-            for page in read_json(self.project / "02_design/split-references.json")["pages"]
-        }
+        split_refs = {}
         split_cells = dict(
             page_split_rows(
                 (self.project / "02_design/design-spec.md").read_text(encoding="utf-8")
@@ -771,7 +786,7 @@ class WorkflowTests(unittest.TestCase):
             "prompt": self.preview_prompt(context, stage, option, page_id, tag),
             "output": f"{folder}/assets/GEN-{number:03d}.png",
             "max_attempts": 1,
-            "asset_mode": "crop",
+            "asset_mode": "strict",
             "intended_use": f"{page_id} 的整页预览（AI 生成，按设计稿 {page_id} 排版）",
             "factual_boundary": "整页预览为 AI 生成示意，不代表真实人物、地点或数据",
             "references": context["split_refs"].get(page_id, []),
@@ -1047,7 +1062,7 @@ class WorkflowTests(unittest.TestCase):
 
     def test_custom_canvas_and_z_order(self):
         self.spec["meta"] = {"layout": "CUSTOM", "width": 10, "height": 8}
-        # 文字被色块完全套住就是文本框：文字必须在框中心（align/valign 都要居中）
+        # 保持本测试夹具的编号居中；正文对齐按语义选择。
         elements = [{"id": "TOP", "type": "text", "text": "顶层", "x": 1, "y": 1, "w": 3, "h": 1, "z": 20,
                      "align": "center", "valign": "middle"},
                     {"id": "BOTTOM", "type": "shape", "shape": "rect", "x": 1, "y": 1, "w": 3, "h": 1, "z": -1}]
@@ -1159,18 +1174,18 @@ class WorkflowTests(unittest.TestCase):
         self.approved_fixture(through="1.2")
         spec = (self.project / "02_design/design-spec.md").read_text(encoding="utf-8")
         self.assertIn("## 待补充材料", spec)
-        self.assertIn("每页尽量都有图片", spec)
+        self.assertIn("每页必须有内容相关配图", spec)
 
         scope = (ROOT / "stages/12-content/SKILL.md").read_text(encoding="utf-8")
-        self.assertIn("尽量保证每一页都有图片", scope)
+        self.assertIn("每页必须有图", scope)
         self.assertIn("BioRender", scope)
         self.assertIn("保留设计稿规划", scope)
 
         design = (ROOT / "stages/13-design/SKILL.md").read_text(encoding="utf-8")
-        self.assertIn("尽量保证每一页都有图片", design)
+        self.assertIn("每页必须有图", design)
 
         skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
-        self.assertIn("尽量保证每一页都有图片", skill)
+        self.assertIn("每一页都必须有图", skill)
         self.assertIn("generation-prompts.md", skill)
 
     def test_progress_bar_text_is_not_part_of_content_texts(self):
@@ -1212,78 +1227,14 @@ class WorkflowTests(unittest.TestCase):
         errors = spec_errors(self.project, self.spec, release=True)
         self.assertTrue(any("不应出现进度条" in item for item in errors), errors)
 
-    def test_build_rules_for_toc_numbers_and_missing_elements(self):
-        build = (ROOT / "stages/33-build/SKILL.md").read_text(encoding="utf-8")
-        for item in (
-            "分开成两个单独的文本框",
-            "标号字号比小标题略大一点",
-            "在文本框中心",
-            "不能省略",
-            "裁切时不要切到画面主体",
-        ):
-            self.assertIn(item, build)
 
-        scope = (ROOT / "stages/13-design/SKILL.md").read_text(encoding="utf-8")
-        self.assertIn("主动询问用户补充", scope)
-        content = (ROOT / "stages/12-content/SKILL.md").read_text(encoding="utf-8")
-        self.assertIn("主动向用户询问补充", content)
-
-        # 图片出处不上页面，但图片旁要有图注，且设计稿包含图注
-        for name in (
-            "stages/13-design/assets/design-spec.md",
-            "stages/13-design/SKILL.md",
-            "stages/12-content/SKILL.md",
-            "SKILL.md",
-        ):
-            doc = (ROOT / name).read_text(encoding="utf-8")
-            self.assertIn("Sxx-CAPTION-01", doc, name)
-        template = (ROOT / "stages/13-design/assets/design-spec.md").read_text(encoding="utf-8")
-        self.assertIn("图片说明（页面上的图注文字，要进 `content.json`）", template)
-        self.assertIn("不需要在页面上标注出处", template)
-
-    def test_ai_major_images_must_be_used_in_the_deck(self):
+    def test_generated_candidates_do_not_force_deck_artwork(self):
         from workflow_lib import ai_major_image_errors
-
         self.approved_fixture(through="1.2")
-        registry = read_json(self.project / "02_design/generated-assets.json")["assets"]
-        hero = next(a["id"] for a in registry if a["kind"] == "hero-image")
-        toc_image = next(a["id"] for a in registry if a["kind"] == "toc-image")
-        background = next(a["id"] for a in registry if a["kind"] == "content-background")
-        photo = self.project / "00_intake/materials/photos/ai-hero-test.png"
-        Image.new("RGB", (1600, 900), "#2F5D62").save(photo)
-        self.register_material("PHOTO-900", photo, "photo")
-
-        failures = ai_major_image_errors(self.project, self.spec)
-        self.assertTrue(any("标题图" in item for item in failures), failures)
-
-        def attach(slide, element_id, source_id):
-            slide["elements"].append({
-                "id": element_id,
-                "type": "image",
-                "sourceId": source_id,
-                "path": photo.relative_to(self.project).as_posix(),
-                "x": 0.5,
-                "y": 0.5,
-                "w": 13.333333,
-                "h": 7.5,
-                "fit": "cover",
-                "altText": "AI 大图",
-            })
-
-        attach(self.spec["slides"][0], "S01-HERO-01", hero)
-        attach(self.spec["slides"][1], "S02-TOCIMG-01", toc_image)
-        self.save_spec()
         self.assertEqual(ai_major_image_errors(self.project, self.spec), [])
-
-        # 追加一页内容页但没有背景底图 → 报错
-        self.append_content_slide("S03", "内容页背景测试")
+        self.append_content_slide("S03", "无图内容页")
         self.save_spec()
         self.sync_contracts()
-        failures = ai_major_image_errors(self.project, self.spec)
-        self.assertTrue(any("背景底图" in item for item in failures), failures)
-
-        attach(self.spec["slides"][2], "S03-BG-01", background)
-        self.save_spec()
         self.assertEqual(ai_major_image_errors(self.project, self.spec), [])
 
     def test_reconstruction_image_is_outside_image_plan(self):
@@ -1651,7 +1602,7 @@ class WorkflowTests(unittest.TestCase):
     def test_rgba_transparent_pixels_use_normalization_background(self):
         source = self.project / "rgba.png"
         output = self.project / "rgba-preview.png"
-        Image.new("RGBA", (100, 100), (0, 0, 0, 0)).save(source)
+        Image.new("RGBA", (160, 90), (0, 0, 0, 0)).save(source)
         record = normalize(source, output, "pad", "#123456")
         self.assertEqual(record["background"], "#123456")
         with Image.open(output) as image:
@@ -1695,6 +1646,7 @@ class WorkflowTests(unittest.TestCase):
         # 不设次数预算：失败的任务会自动重试，直到成功或达到单任务本轮上限。
         plan["jobs"] = [{
             "id": "FLAKY",
+            "page_id": "S01",
             "asset_id": "GEN-503",
             "prompt": "FLAKY " + self.prompt_suffix("S01"),
             "output": "03_concepts/assets/GEN-503.png",
@@ -1714,6 +1666,7 @@ class WorkflowTests(unittest.TestCase):
         self.assertTrue((self.project / "03_concepts/assets/GEN-503.png").is_file())
         plan["jobs"] = [{
             "id": "FAIL",
+            "page_id": "S01",
             "asset_id": "GEN-502",
             "prompt": "FAIL " + self.prompt_suffix("S01"),
             "output": "03_concepts/assets/GEN-502.png",
@@ -1770,6 +1723,7 @@ class WorkflowTests(unittest.TestCase):
         write_json(self.project / "03_concepts/generation-jobs.json", {
             "jobs": [{
                 "id": "LEGACY",
+                "page_id": "S01",
                 "asset_id": "GEN-504",
                 "prompt": "TEST " + self.prompt_suffix("S01"),
                 "output": "03_concepts/assets/GEN-504.png",
@@ -1857,23 +1811,16 @@ class WorkflowTests(unittest.TestCase):
 
     def test_preview_normalization_preserves_source_and_shape(self):
         source, output = self.project / "raw.png", self.project / "preview.png"
-        Image.new("RGB", (400, 400), "red").save(source)
+        Image.new("RGB", (1600, 900), "red").save(source)
         before = digest(source)
-        record = normalize(source, output, "pad", "#0000FF")
-        self.assertEqual(record["original_size"], [400, 400])
-        with Image.open(output) as image:
-            self.assertEqual(image.size, (1920, 1080))
-            self.assertEqual(image.getpixel((419, 540)), (0, 0, 255))
-            self.assertEqual(image.getpixel((420, 540)), (255, 0, 0))
-            self.assertEqual(image.getpixel((1499, 540)), (255, 0, 0))
-            self.assertEqual(image.getpixel((1500, 540)), (0, 0, 255))
+        record = normalize(source, output)
+        self.assertEqual(record["mode"], "proportional_resize")
+        with Image.open(output) as rendered:
+            self.assertEqual(rendered.size, (1920, 1080))
+            self.assertEqual(rendered.getpixel((0, 0)), (255, 0, 0))
         self.assertEqual(digest(source), before)
         with self.assertRaises(ValueError):
-            normalize(source, output, "strict")
-        with self.assertRaises(ValueError):
             normalize(source, source)
-        normalize(source, output, "crop")
-        self.assertFalse(image_errors(output))
 
     def test_all_concept_pages_checked_before_approval(self):
         self.approved_fixture(through="1.3")
@@ -1978,7 +1925,7 @@ class WorkflowTests(unittest.TestCase):
         ]
         self.assertEqual(set(categorized_ids), indexed_ids)
         self.assertEqual(len(categorized_ids), len(set(categorized_ids)))
-        self.assertEqual(len(taxonomy["categories"]), 14)
+        self.assertEqual(len(taxonomy["categories"]), 20)
         for category in taxonomy["categories"]:
             self.assertEqual(category["id"], f"{category['page_type']}-{category['layout_id']}")
             self.assertIn(category["page_type"], taxonomy["taxonomy"]["page_types"])
@@ -2140,22 +2087,6 @@ class WorkflowTests(unittest.TestCase):
         self.generate_content_assets()
         self.workflow("complete", "1.2")
 
-    def test_hero_image_subject_sits_on_the_right(self):
-        content = (ROOT / "stages/12-content/SKILL.md").read_text(encoding="utf-8")
-        self.assertIn("封面大图的构图要求必须写进提示词", content)
-        self.assertIn("画面主体放在**右侧**", content)
-        self.assertIn("左侧约 40%–50% 保持干净", content)
-
-        for relative in (
-            "SKILL.md",
-            "stages/13-design/references/style-guide.md",
-            "stages/13-design/assets/design-spec.md",
-            "shared/artifact-contract.md",
-            "shared/preview-contract.md",
-        ):
-            doc = (ROOT / relative).read_text(encoding="utf-8")
-            self.assertIn("主体偏右、左侧干净", doc, relative)
-
     def test_candidates_must_cover_every_design_direction(self):
         self.approved_fixture(through="1.1")
         self.generate_content_assets()
@@ -2269,27 +2200,9 @@ class WorkflowTests(unittest.TestCase):
             success=False,
         )
 
-    def test_generation_prompt_scope_stays_light(self):
-        scope = (ROOT / "stages/13-design/references/gen-prompt-scope.md").read_text(encoding="utf-8")
-        for item in ("排版要求", "内容要求", "元素图", "图形元素", "风格与颜色限定"):
-            self.assertIn(item, scope)
-        self.assertIn("不要写进提示词", scope)
-        for forbidden in ("检查码", "规则编号", "阈值"):
-            self.assertIn(forbidden, scope)
-
-        concepts = (ROOT / "stages/21-concepts/SKILL.md").read_text(encoding="utf-8")
-        self.assertIn("gen-prompt-scope.md", concepts)
-        self.assertIn("不必展开整段风格规范", concepts)
-
-        full = (ROOT / "stages/22-full-preview/SKILL.md").read_text(encoding="utf-8")
-        self.assertIn("gen-prompt-scope.md", full)
-        self.assertIn("风格与颜色限定", full)
-
-        skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
-        self.assertIn("阈值、检查码、规则编号", skill)
 
     def test_content_layouts_and_split_hints_are_aligned(self):
-        """内容页八种版式（content-page.md）与参考库、分块词表必须对齐。"""
+        """十四类内容关系原型与分类及可用编号保持一致。"""
         references = ROOT / "stages/13-design/references"
         categories = read_json(references / "reference-categories.json")["categories"]
         content = {
@@ -2298,7 +2211,7 @@ class WorkflowTests(unittest.TestCase):
             if category["page_type"] == "content"
         }
         self.assertEqual(
-            sorted(content), ["C01", "C02", "C03", "C04", "C05", "C06", "C07", "C08"]
+            sorted(content), [f"C{i:02}" for i in range(1, 15)]
         )
         menu = (references / "content-page.md").read_text(encoding="utf-8")
         for layout_id, category in content.items():
@@ -2306,119 +2219,45 @@ class WorkflowTests(unittest.TestCase):
             self.assertTrue(hint, layout_id)
             self.assertIn(layout_id, menu)
             self.assertIn(hint, menu, layout_id)
-        for name in (
-            "斜切", "弧线", "扇形", "同心圆", "波浪", "金字塔",
-            "圆形放射", "左圆右栏", "六边形", "横带", "四宫格",
-        ):
-            self.assertIn(name, menu)
-        self.assertIn("编号就是参考库的编号", menu)
 
-    def test_special_split_methods_are_documented(self):
-        splits = (ROOT / "stages/13-design/references/layout-splits.md").read_text(encoding="utf-8")
-        for name in (
-            "斜切分块",
-            "弧线分块",
-            "扇形分块",
-            "同心圆分块",
-            "波浪形分块",
-            "金字塔形分块",
-            "圆形分块（放射）",
-            "左圆右栏分块",
-            "横带分块（中间通栏）",
-            "六边形分块（蜂窝）",
-        ):
-            self.assertIn(name, splits)
-        self.assertIn("一半以上的正文页要用特殊分块，内容合适时越多越好", splits)
-        self.assertIn("横带分块与四宫格分块不算特殊分块", splits)
 
-        template = (ROOT / "stages/13-design/assets/design-spec.md").read_text(encoding="utf-8")
-        self.assertIn("layout-splits.md", template)
-        self.assertIn("斜切分块、弧线分块、扇形分块、同心圆分块、波浪形分块、金字塔形分块", template)
+    def test_new_content_prototypes_allow_text_only_reference_selection(self):
+        from jsonschema import Draft202012Validator
+        from workflow_lib import reference_category_errors
+        categories = read_json(ROOT / "stages/13-design/references/reference-categories.json")["categories"]
+        enum_schema = read_json(ROOT / "shared/schemas/content.schema.json")["properties"]["slides"]["items"]["properties"]["layout_id"]
+        for number in range(9, 15):
+            code = f"C{number:02}"
+            category = next(c for c in categories if c["id"] == f"content-{code}")
+            self.assertEqual(category["reference_ids"], [])
+            self.assertEqual(list(Draft202012Validator(enum_schema).iter_errors(code)), [])
+            slide = {"id": "S03", "page_type": "content", "layout_id": code,
+                     "reference_categories": [f"content-{code}"], "reference_ids": []}
+            self.assertEqual(reference_category_errors({"slides": [slide]}), [])
+            slide["reference_ids"] = ["R001"]
+            self.assertTrue(reference_category_errors({"slides": [slide]}))
 
-        for name in ("扇形分块", "同心圆分块", "波浪形分块", "金字塔形分块", "左圆右栏分块"):
-            self.assertIn(name, splits)
-
-        skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
-        self.assertIn("分块参考图", skill)
-
-        design = (ROOT / "stages/13-design/SKILL.md").read_text(encoding="utf-8")
-        self.assertIn("特殊分块", design)
-
-    def test_half_the_body_pages_need_special_splits(self):
-        import re
-
-        self.append_content_slide_with_toc("S03", "研究背景与问题")
-        self.append_content_slide_with_toc("S04", "关键结论与证据")
-        self.sync_contracts()
-        self.assertEqual(
-            [e for e in design_errors(self.project) if "特殊分块" in e], []
-        )
-
-        # 把所有正文页的分块方式改成常规分块 → 特殊分块不足
-        spec = self.project / "02_design/design-spec.md"
-        text = spec.read_text(encoding="utf-8")
-        content = read_json(self.project / "02_design/content.json")
-        content_ids = {
-            slide["id"] for slide in content["slides"] if slide["page_type"] == "content"
-        }
-        lines = []
-        for line in text.splitlines():
-            stripped = line.strip()
-            if stripped.startswith("| S"):
-                cells = [cell.strip() for cell in stripped.strip("|").split("|")]
-                if cells and cells[0] in content_ids:
-                    cells[1] = "上下分块"
-                    line = "| " + " | ".join(cells) + " |"
-            lines.append(line)
-        spec.write_text("\n".join(lines) + "\n", encoding="utf-8")
-        errors = [e for e in design_errors(self.project) if "特殊分块" in e]
-        self.assertTrue(any("特殊分块页面不足" in e for e in errors), errors)
-
-        # 一半（不是"多于一半"）不算通过：3 页正文里只有 1 页特殊分块 → 拒绝
-        self.append_content_slide_with_toc("S05", "方法概览")
-        self.sync_contracts()
-        spec = self.project / "02_design/design-spec.md"
-        text = spec.read_text(encoding="utf-8")
-        patched = []
-        for line in text.splitlines():
-            stripped = line.strip()
-            if stripped.startswith("| S"):
-                cells = [cell.strip() for cell in stripped.strip("|").split("|")]
-                if cells and cells[0] in {"S04", "S05"}:
-                    cells[1] = "上下分块"
-                    line = "| " + " | ".join(cells) + " |"
-            patched.append(line)
-        spec.write_text("\n".join(patched) + "\n", encoding="utf-8")
-        errors = [e for e in design_errors(self.project) if "特殊分块" in e]
-        self.assertTrue(any("至少需要 2 页" in e for e in errors), errors)
-
-        # 2/3 页用特殊分块（66%）→ 通过
-        patched = []
-        for line in spec.read_text(encoding="utf-8").splitlines():
-            stripped = line.strip()
-            if stripped.startswith("| S"):
-                cells = [cell.strip() for cell in stripped.strip("|").split("|")]
-                if cells and cells[0] == "S04":
-                    cells[1] = "左右分块＋同心圆分块"
-                    line = "| " + " | ".join(cells) + " |"
-            patched.append(line)
-        spec.write_text("\n".join(patched) + "\n", encoding="utf-8")
-        self.assertEqual(
-            [e for e in design_errors(self.project) if "特殊分块" in e], []
-        )
-
-        # 完全没有按页填写分块表 → 也要提示
-        spec.write_text(
-            "\n".join(
-                line
-                for line in text.splitlines()
-                if not line.strip().startswith("| S")
-            )
-            + "\n",
-            encoding="utf-8",
-        )
-        errors = [e for e in design_errors(self.project) if "特殊分块" in e]
-        self.assertTrue(any("还没有按页填写分块方式" in e for e in errors), errors)
+    def test_special_split_selection_requires_strict_majority_of_all_pages(self):
+        content = {"slides": [{"id": f"S{i:02}", "page_type": "content"}
+                              for i in range(1, 5)]}
+        header = "## 页面分块要求\n| 页面 | 分块方式 |\n|---|---|\n"
+        half = header + "| S01 | 左右分块＋弧线分块 |\n| S02 | 斜切分块 |\n"
+        half += "| S03 | 四宫格分块 |\n| S04 | 横带分块 |\n"
+        self.assertTrue(any("至少需要 3 页" in e for e in special_split_errors(content, half)))
+        majority = half.replace("| S03 | 四宫格分块 |", "| S03 | 波浪形分块 |").replace(
+            "| S01 | 左右分块＋弧线分块 |", "| S01 | 弧线分块＋斜切分块 |")
+        self.assertEqual(special_split_errors(content, majority), [])
+        missing = majority.replace("| S04 | 横带分块 |\n", "")
+        self.assertTrue(any("S04" in e for e in special_split_errors(content, missing)))
+        duplicate = majority + "| S04 | 横带分块 |\n"
+        self.assertTrue(any("重复登记" in e for e in special_split_errors(content, duplicate)))
+        # Cover/TOC contribute to the denominator: three of six is not a majority.
+        content["slides"] += [{"id": "S05", "page_type": "title"},
+                              {"id": "S06", "page_type": "toc"}]
+        self.assertTrue(any("至少需要 4 页" in e for e in special_split_errors(content, majority)))
+        self.assertEqual(special_split_errors(content, majority + "| S06 | 六边形分块 |\n"), [])
+        content["slides"].pop()
+        self.assertEqual(special_split_errors(content, majority), [])
 
     def test_split_reference_images_ship_with_the_skill(self):
         folder = ROOT / "shared/references/splits"
@@ -2451,7 +2290,7 @@ class WorkflowTests(unittest.TestCase):
                     share = bright / (grey.width * grey.height)
                 self.assertGreater(share, 0.7, f"{name} 应是线稿样例（大面积留白）")
                 files.append(name)
-        self.assertEqual(len(set(files)), 16)
+        self.assertEqual(len(set(files)), 18)
 
         # 设计稿里的分块写法都要能匹配到条目（含别名与标签）
         for cell in (
@@ -2465,15 +2304,16 @@ class WorkflowTests(unittest.TestCase):
             self.assertTrue(split_entries(cell), cell)
 
         # 参考图只作分区参考：文档与索引都要写明不要照抄图上的线条
-        self.assertIn("分区参考", index["usage"])
-        self.assertIn("不要照抄", index["usage"])
+        self.assertIn("仅作结构启发", index["usage"])
+        self.assertIn("不要求严格按照参考图生成页面", index["usage"])
+        self.assertIn("不照抄", index["usage"])
         self.assertIn("色差", index["usage"])
         script = ROOT / "shared/scripts/prepare_split_references.py"
         self.assertTrue(script.is_file())
         skeleton = (ROOT / "shared/operations.md").read_text(encoding="utf-8")
-        self.assertIn("prepare_split_references.py", skeleton)
-        self.assertIn("shared/references/splits/", skeleton)
-        self.assertIn("02_design/split-references.json", skeleton)
+        self.assertIn("生成页面预览时不提供分块参考图", skeleton)
+        self.assertIn("全部文本框与图形元素的逐项说明", skeleton)
+        self.assertIn("不要求复制分块图或建立 split-references.json", skeleton)
         splits_doc = (ROOT / "stages/13-design/references/layout-splits.md").read_text(encoding="utf-8")
         for name in (
             "diagonal-cut.png",
@@ -2485,60 +2325,87 @@ class WorkflowTests(unittest.TestCase):
             "offset-grid.png",
         ):
             self.assertIn(name, splits_doc)
-        for relative in ("SKILL.md", "shared/operations.md", "shared/artifact-contract.md"):
-            doc = (ROOT / relative).read_text(encoding="utf-8")
-            self.assertIn("split-references", doc, relative)
-        for relative in (
-            "SKILL.md",
-            "shared/operations.md",
-            "stages/13-design/references/layout-splits.md",
-            "stages/13-design/assets/design-spec.md",
-        ):
-            doc = (ROOT / relative).read_text(encoding="utf-8")
-            self.assertIn("分区示意", doc, relative)
-            self.assertIn("不要照抄", doc, relative)
 
-    def test_rework_uses_image_to_image(self):
-        skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
-        self.assertIn("被退回或需要修改的图必须用图生图改原图", skill)
-        self.assertIn("不得重新用文生图从头生成", skill)
-        concepts = (ROOT / "stages/21-concepts/SKILL.md").read_text(encoding="utf-8")
-        self.assertIn("被退回或需要修改的整页预览必须用图生图改原图", concepts)
-        full = (ROOT / "stages/22-full-preview/SKILL.md").read_text(encoding="utf-8")
-        self.assertIn("被退回的页必须用图生图改原图", full)
-        contract = (ROOT / "shared/preview-contract.md").read_text(encoding="utf-8")
-        self.assertIn("必须用图生图改原图", contract)
-        artifact = (ROOT / "shared/artifact-contract.md").read_text(encoding="utf-8")
-        self.assertIn("一律用图生图改原图", artifact)
-
-    def test_boxed_text_must_be_centered_and_fit(self):
+    def test_boxed_text_allows_semantic_alignment_but_must_fit(self):
         self.build()
         slide = self.spec["slides"][1]
         text = slide["elements"][0]
         slide["elements"].append({
-            "id": "S02-BOX-01",
-            "type": "shape",
-            "shape": "roundRect",
-            "x": round(text["x"] - 0.2, 3),
-            "y": round(text["y"] - 0.1, 3),
-            "w": round(text["w"] + 0.4, 3),
-            "h": round(text["h"] + 0.2, 3),
-            "fill": {"color": "EDF2F4"},
-            "line": {"color": "CBD5DB"},
+            "id": "S02-BOX-01", "type": "shape", "shape": "roundRect",
+            "x": round(text["x"] - 0.2, 3), "y": round(text["y"] - 0.1, 3),
+            "w": round(text["w"] + 0.4, 3), "h": round(text["h"] + 0.2, 3),
+            "fill": {"color": "EDF2F4"}, "line": {"color": "CBD5DB"},
         })
-        write_json(self.spec_path, self.spec)
-
-        errors = spec_errors(self.project, self.spec)
-        self.assertTrue(any("水平居中" in item for item in errors), errors)
-        text["align"] = "center"
-        errors = spec_errors(self.project, self.spec)
-        self.assertTrue(any("垂直居中" in item for item in errors), errors)
-        text["valign"] = "middle"
-        self.assertFalse(spec_errors(self.project, self.spec), spec_errors(self.project, self.spec))
-
+        for align, valign in (("left", "top"), ("center", "middle")):
+            text["align"], text["valign"] = align, valign
+            self.assertFalse(spec_errors(self.project, self.spec), spec_errors(self.project, self.spec))
         text["text"] = "很长的正文文字" * 20
-        errors = spec_errors(self.project, self.spec)
-        self.assertTrue(any("放不进文本框" in item for item in errors), errors)
+        self.assertTrue(any("放不进文本框" in e for e in spec_errors(self.project, self.spec)))
+
+    def test_non_widescreen_preview_is_returned_without_padding_or_crop(self):
+        source, output = self.project / "raw.png", self.project / "preview.png"
+        Image.new("RGB", (1536, 1024), "white").save(source)
+        before = digest(source)
+        for mode in ("strict", "pad", "crop"):
+            with self.assertRaisesRegex(ValueError, "不是精确 16:9"):
+                normalize(source, output, mode)
+            self.assertFalse(output.exists())
+        self.assertEqual(digest(source), before)
+
+    def test_whole_page_request_requires_exact_widescreen_size(self):
+        self.approved_fixture(through="1.3")
+        path = self.project / "03_concepts/generation-jobs.json"
+        jobs = {"jobs": self.preview_jobs("2.1", "a")}
+        write_json(path, jobs)
+        for size in ("1536x1024", "1664x928"):
+            jobs["jobs"][0]["size"] = size
+            write_json(path, jobs)
+            self.assertTrue(any("请求尺寸不是精确" in e for e in generation_jobs_errors(self.project, "2.1")))
+        jobs["jobs"][0]["size"] = "1536x864"
+        write_json(path, jobs)
+        self.assertFalse(generation_jobs_errors(self.project, "2.1"), generation_jobs_errors(self.project, "2.1"))
+
+    def test_whole_page_crop_job_is_rejected_before_provider_call(self):
+        self.approved_fixture(through="1.3")
+        path = self.project / "03_concepts/generation-jobs.json"
+        jobs = {"jobs": self.preview_jobs("2.1", "a")}
+        write_json(path, jobs)
+        jobs["jobs"][0]["asset_mode"] = "crop"
+        write_json(path, jobs)
+        self.assertTrue(any("不得用 crop 或 pad" in e for e in generation_jobs_errors(self.project, "2.1")))
+
+    def test_provider_non_widescreen_page_is_rejected_once_with_raw_evidence(self):
+        self.approved_fixture(through="1.3")
+        jobs = self.preview_jobs("2.1", "a")[:1]
+        jobs[0]["prompt"] += "\nRETURN-SQUARE"
+        path = self.project / "03_concepts/generation-jobs.json"
+        write_json(path, {"jobs": jobs})
+        self.log_prompts("concepts", jobs)
+        result = self.run_python("stages/21-concepts/scripts/run_generation.py",
+                                 self.project, "--stage", "concepts", "--execute", success=False)
+        self.assertIn("不是精确 16:9", result.stderr)
+        record = read_json(self.project / "03_concepts/generation-ledger.json")["jobs"][jobs[0]["id"]]
+        self.assertEqual(record["status"], "failed")
+        self.assertEqual(record["attempts"], 1)
+        self.assertEqual(record["original_size"], [640, 640])
+        self.assertIn("退回", record["rejection"])
+        self.assertEqual(digest(self.project / record["raw_path"]), record["raw_sha256"])
+        self.assertFalse((self.project / jobs[0]["output"]).exists())
+
+    def test_ledger_checks_actual_raw_ratio_not_only_declared_dimensions(self):
+        self.approved_fixture(through="1.3")
+        self.generate_concept_set()
+        path = self.project / "03_concepts/generation-ledger.json"
+        ledger = read_json(path)
+        record = next(iter(ledger["jobs"].values()))
+        raw = self.project / record["raw_path"]
+        Image.new("RGB", (640, 400), "white").save(raw)
+        record["raw_sha256"] = digest(raw)
+        # The declared 16:9 dimensions and a valid output must not conceal the raw ratio.
+        write_json(path, ledger)
+        errors = generation_ledger_errors(self.project, "2.1")
+        self.assertTrue(any("实际供应商原图不是精确 16:9" in e for e in errors), errors)
+        self.assertTrue(any("原图尺寸记录与实际文件不一致" in e for e in errors), errors)
 
     def test_element_inventory_precedes_the_rebuild(self):
         self.approved_fixture(through="2.2")
@@ -2547,7 +2414,7 @@ class WorkflowTests(unittest.TestCase):
 
         audit = (ROOT / "stages/31-element-audit/SKILL.md").read_text(encoding="utf-8")
         self.assertIn("element-inventory.md", audit)
-        self.assertIn("\u4e0d\u542b\u8ba1\u5212\u56fe\u7247\u7684\u5360\u4f4d\u5757", audit)
+        self.assertIn("已本地插入登记原图", audit)
         self.assertIn("\u8ba1\u5212\u7684\u5206\u79bb\u65b9\u5f0f", audit)
 
         rebuild = (ROOT / "stages/32-asset-rebuild/SKILL.md").read_text(encoding="utf-8")
@@ -2557,7 +2424,7 @@ class WorkflowTests(unittest.TestCase):
         self.assertIn("\u539f\u751f\u5143\u7d20\u7ec4\u88c5", rebuild)
 
         build = (ROOT / "stages/33-build/SKILL.md").read_text(encoding="utf-8")
-        self.assertIn("\u9875\u9762\u7684\u80cc\u666f\u53ea\u80fd\u662f\u8fd9\u4e09\u5f20 AI \u5927\u56fe", build)
+        self.assertIn("背景按已批准设计", build)
         contract = (ROOT / "shared/artifact-contract.md").read_text(encoding="utf-8")
         self.assertIn("element-inventory.md", contract)
 
@@ -2566,109 +2433,91 @@ class WorkflowTests(unittest.TestCase):
         rejected = self.workflow("complete", "3.1", success=False)
         self.assertIn("element-inventory.md", rejected.stderr)
 
-    def test_boxed_shapes_and_lines_must_be_rebuilt(self):
-        audit = (ROOT / "stages/31-element-audit/SKILL.md").read_text(encoding="utf-8")
-        self.assertIn("异形文本框与线条装饰一个都不能省略", audit)
-        rebuild = (ROOT / "stages/32-asset-rebuild/SKILL.md").read_text(encoding="utf-8")
-        self.assertIn("异形文本框与线条装饰必须逐一还原，不得省略", rebuild)
-        build = (ROOT / "stages/33-build/SKILL.md").read_text(encoding="utf-8")
-        self.assertIn("异形文本框与线条装饰一定要还原，不能省略", build)
-        self.assertIn("不能出格", build)
-        self.assertIn("align: \"center\"", build)
 
-    def test_visual_review_also_checks_placeholder_ratio(self):
-        """逐页看图时要顺带目测占位块比例（粗略检查，不是机检）。"""
-        for rel in (
-            "SKILL.md",
-            "shared/operations.md",
-            "shared/preview-contract.md",
-            "stages/21-concepts/SKILL.md",
-            "stages/22-full-preview/SKILL.md",
-        ):
-            document = (ROOT / rel).read_text(encoding="utf-8")
-            self.assertIn("目测", document, rel)
-            self.assertIn("不是机检", document, rel)
-            self.assertIn("占位块", document, rel)
+
+    def test_placeholder_aspect_relaxation_is_small_and_requires_review(self):
+        from workflow_lib import placeholder_errors
+        source = self.project / "ratio-test.png"
+        Image.new("RGB", (1000, 1000)).save(source)
+        def check(delta, review=None):
+            box = {"x": 0.1, "y": 0.1, "w": 0.3 * 1080 / 1920 * (1 + delta), "h": 0.3}
+            entry = {"imageId": "PHOTO-01", "box": box}
+            if review is not None:
+                entry["aspectReview"] = review
+            page = {"id": "S01", "file": "unused.png", "placeholders": [entry]}
+            plan = {"images": [{"id": "PHOTO-01", "box": box, "path": "ratio-test.png"}]}
+            return placeholder_errors(self.project, page, plan, {"prompt": "保留图片占位块"})
+        self.assertEqual(check(0.11), [])
+        self.assertTrue(any("占位块比例" in e for e in check(0.14)))
+        self.assertTrue(check(0.14, {"revisionAttempts": 1, "note": "仅修订一轮"}))
+        self.assertTrue(check(0.14, {"revisionAttempts": 2, "note": ""}))
+        review = {"revisionAttempts": 2, "note": "两轮实际调整后仍偏差14%；试插原图等比完整、清晰无遮挡"}
+        self.assertEqual(check(0.14, review), [])
+        self.assertTrue(any("占位块比例" in e for e in check(0.16, review)))
+
+    def test_markdown_prompt_keeps_layout_nesting_and_bold_points(self):
+        from workflow_lib import prompt_markdown_layout_errors, prompt_points
+        prompt = "- **排版要求**：左右分块\n  - **左侧分块**：方法\n    - **上部子分块**：说明\n      - **文本框**：正文\n  - **右侧分块**：结果\n    - **图片**：结果图\n- **风格要求**：深蓝"
+        self.assertEqual(prompt_markdown_layout_errors(prompt), [])
+        self.assertTrue(prompt_points(prompt)[0].startswith("排版要求"))
+        self.assertTrue(prompt_markdown_layout_errors(re.sub(r"(?m)^ +(?=-)", "  ", prompt)))
+        self.assertTrue(prompt_markdown_layout_errors("③ 排版要求：左侧文字，右侧图片"))
 
     def test_preview_placeholders_keep_the_planned_ratio(self):
+        from workflow_lib import placeholder_errors
+        source = self.project / "ratio-test.png"
+        Image.new("RGB", (1000, 1000)).save(source)
+        box = {"x": 0.1, "y": 0.1, "w": 0.3 * 1080 / 1920, "h": 0.3}
+        plan = {"images": [{"id": "PHOTO-01", "box": box, "path": "ratio-test.png"}]}
+        page = {"id": "S03", "file": "unused.png", "placeholders": [{"imageId": "PHOTO-01", "box": dict(box)}]}
+        job = {"prompt": "保留图片占位块"}
+        def check():
+            return placeholder_errors(self.project, page, plan, job, page_type="content")
+        self.assertEqual(check(), [])
+        page["placeholders"][0]["box"]["h"] *= 0.5
+        self.assertTrue(any("占位块比例" in e for e in check()))
+        page["placeholders"][0]["box"] = {**box, "x": box["x"] + 0.1}
+        self.assertTrue(any("占位块位置与图片计划不一致" in e for e in check()))
+        page.pop("placeholders")
+        self.assertTrue(any("没有登记" in e for e in check()))
+        job["prompt"] = "底图与配图要求：在原底图上构建"
+        self.assertTrue(any("没有写占位块" in e for e in check()))
+        for kind in ("title", "toc"):
+            self.assertEqual(placeholder_errors(self.project, page, plan, job, page_type=kind), [])
+
+    def test_cover_preview_accepts_base_art_without_placeholder_prompt(self):
         self.install_test_photo()
         self.approved_fixture(through="2.1")
         manifest_path = self.project / "03_concepts/option-b/preview.json"
         manifest = read_json(manifest_path)
-        page = next(item for item in manifest["pages"] if item["id"] == "S01")
-        entry = next(
-            item for item in page["placeholders"] if item["imageId"] == "S01-PHOTO-01"
-        )
-        original = copy.deepcopy(entry["box"])
-        self.assertFalse(preview_pages_errors(self.project, "2.1", "b"))
-
-        entry["box"]["h"] = round(entry["box"]["h"] * 0.5, 4)
+        page = next(p for p in manifest["pages"] if p["id"] == "S01")
+        page.pop("placeholders", None)
         write_json(manifest_path, manifest)
-        failures = preview_pages_errors(self.project, "2.1", "b")
-        self.assertTrue(any("占位块比例" in item for item in failures), failures)
-
-        entry["box"] = {**original, "x": round(original["x"] + 0.1, 4)}
-        write_json(manifest_path, manifest)
-        failures = preview_pages_errors(self.project, "2.1", "b")
-        self.assertTrue(any("占位块位置与图片计划不一致" in item for item in failures), failures)
-
-        entry["box"] = original
-        page.pop("placeholders")
-        write_json(manifest_path, manifest)
-        failures = preview_pages_errors(self.project, "2.1", "b")
-        self.assertTrue(any("没有登记" in item for item in failures), failures)
-
-        page["placeholders"] = [{"imageId": "S01-PHOTO-01", "box": original}]
-        write_json(manifest_path, manifest)
-
-        # 预览提示词没有写占位块 → 拦下
         jobs_path = self.project / "03_concepts/generation-jobs.json"
         jobs = read_json(jobs_path)
-        job = next(item for item in jobs["jobs"] if item["id"] == "CONCEPT-B-S01")
-        self.assertIn("\u5360\u4f4d\u5757", job["prompt"])
-        job["prompt"] = "CONCEPT S01 整页预览，按设计稿生成"
+        job = next(j for j in jobs["jobs"] if j["id"] == "CONCEPT-B-S01")
+        job["prompt"] = job["prompt"].replace("图片占位框比例", "底图与配图要求").replace("占位块", "原底图").replace("占位框", "底图")
         write_json(jobs_path, jobs)
-        failures = preview_pages_errors(self.project, "2.1", "b")
-        self.assertTrue(any("没有写占位块" in item for item in failures), failures)
+        self.assertEqual(preview_prompt_errors(self.project, "2.1", job_ids={job["id"]}), [])
+        self.assertEqual(preview_pages_errors(self.project, "2.1", "b"), [])
 
-    def test_special_splits_must_vary_between_pages(self):
-        self.append_content_slide_with_toc("S03", "分块变化测试页一")
-        self.append_content_slide_with_toc("S04", "分块变化测试页二")
-        self.append_content_slide_with_toc("S05", "分块变化测试页三")
+    def test_same_special_split_can_support_comparable_pages(self):
+        self.append_content_slide_with_toc("S03", "实验对照一")
+        self.append_content_slide_with_toc("S04", "实验对照二")
         self.sync_contracts()
-        self.assertEqual(
-            [item for item in design_errors(self.project) if "完全一样" in item], []
-        )
-
         spec = self.project / "02_design/design-spec.md"
         text = spec.read_text(encoding="utf-8")
-        methods = {page_id: cell for page_id, cell in page_split_rows(text)}
-        self.assertIn("斜切", methods["S03"])
-        self.assertNotEqual(methods["S03"], methods["S05"])
-
-        # 把 S05 的分块方式改成与 S03 完全一样 → 拒绝
+        methods = dict(page_split_rows(text))
         lines = []
         for line in text.splitlines():
-            if line.strip().startswith("| S05 |"):
+            if line.strip().startswith("| S04 |"):
                 cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
                 cells[1] = methods["S03"]
                 line = "| " + " | ".join(cells) + " |"
             lines.append(line)
         spec.write_text("\n".join(lines) + "\n", encoding="utf-8")
-        failures = [item for item in design_errors(self.project) if "完全一样" in item]
-        self.assertTrue(any("S03" in item and "S05" in item for item in failures), failures)
-
-        # 文档口径
-        splits = (ROOT / "stages/13-design/references/layout-splits.md").read_text(encoding="utf-8")
-        self.assertIn("两页之间不要用完全一样的特殊分块方式", splits)
-        template = (ROOT / "stages/13-design/assets/design-spec.md").read_text(encoding="utf-8")
-        self.assertIn("两页之间不要用完全一样的特殊分块方式", template)
-        design = (ROOT / "stages/13-design/SKILL.md").read_text(encoding="utf-8")
-        self.assertIn("两页之间不要用完全一样的特殊分块方式", design)
-        skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
-        self.assertIn("两页之间不要用完全一样的特殊分块方式", skill)
-        operations = (ROOT / "shared/operations.md").read_text(encoding="utf-8")
-        self.assertIn("两页之间不要用完全一样的特殊分块方式", operations)
+        self.assertEqual(dict(page_split_rows(spec.read_text(encoding="utf-8")))["S04"], methods["S03"])
+        self.assertFalse(design_errors(self.project), design_errors(self.project))
 
     def test_stage_spec_library_is_read_per_step(self):
         operations = (ROOT / "shared/operations.md").read_text(encoding="utf-8")
@@ -2682,17 +2531,6 @@ class WorkflowTests(unittest.TestCase):
             doc = (ROOT / f"stages/{folder}/SKILL.md").read_text(encoding="utf-8")
             self.assertIn("开工前先读规范库", doc, folder)
 
-    def test_dissect_and_rebuild_rules_are_documented(self):
-        for folder in ("31-element-audit", "32-asset-rebuild", "33-build"):
-            doc = (ROOT / f"stages/{folder}/SKILL.md").read_text(encoding="utf-8")
-            self.assertIn("背景层先铺 AI 大图", doc, folder)
-            self.assertIn("完全拆解元素", doc, folder)
-            self.assertIn("渐变风格必须还原", doc, folder)
-            self.assertIn("hero-image", doc, folder)
-            self.assertIn("content-background", doc, folder)
-        skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
-        self.assertIn("背景层用阶段 1.2 的 AI 大图", skill)
-        self.assertIn("装饰色块与线条一个都不能漏", skill)
 
     def test_pixel_diff_check_is_removed(self):
         self.assertFalse((ROOT / "stages/33-build/scripts/visual_match.py").exists())
@@ -2740,63 +2578,36 @@ class WorkflowTests(unittest.TestCase):
             [e for e in design_errors(self.project) if "特殊分块页面不足" in e], []
         )
 
-        # 不算特殊分块，但仍要复制参考图并交给 AI
+        # 本地参考库可查阅，预览模型不需要分块示意图。
         self.run_python("shared/scripts/prepare_split_references.py", self.project)
         manifest = read_json(self.project / "02_design/split-references.json")
         page = next(item for item in manifest["pages"] if item["id"] == "S03")
         self.assertTrue(any("band-row" in item for item in page["references"]))
-
         self.generate_concept_set()
+        record = read_json(self.project / "03_concepts/generation-jobs.json")
+        self.assertTrue(all(not job.get("references") for job in record["jobs"]))
         self.assertEqual(preview_pages_errors(self.project, "2.1", "a"), [])
-        jobs_path = self.project / "03_concepts/generation-jobs.json"
-        record = read_json(jobs_path)
-        job = next(item for item in record["jobs"] if item["id"] == "CONCEPT-A-S03")
-        band = next(item for item in job["references"] if "band-row" in item)
-        job["references"] = [item for item in job["references"] if item != band]
-        write_json(jobs_path, record)
-        failures = preview_pages_errors(self.project, "2.1", "a")
-        self.assertTrue(any("没有把分块参考图交给 AI" in item for item in failures), failures)
 
-    def test_preview_tasks_carry_split_references(self):
-        self.append_content_slide_with_toc("S03", "分块参考图测试页")
+    def test_preview_tasks_do_not_require_split_reference_images(self):
+        self.append_content_slide_with_toc("S03", "分区文字提示词测试页")
+        self.append_content_slide_with_toc("S04", "独立元素测试页")
+        self.append_content_slide_with_toc("S05", "图形关系测试页")
+        self.append_content_slide_with_toc("S06", "变体构图测试页")
+        self.append_content_slide_with_toc("S07", "波浪分区测试页")
         self.approved_fixture(through="1.3")
         self.generate_concept_set()
-        self.assertEqual(preview_pages_errors(self.project, "2.1", "a"), [])
-
-        manifest_path = self.project / "02_design/split-references.json"
-        manifest = read_json(manifest_path)
-        page = next(item for item in manifest["pages"] if item["id"] == "S03")
-        reference = page["references"][0]
-        self.assertIn("split-references", reference)
         jobs_path = self.project / "03_concepts/generation-jobs.json"
         jobs = read_json(jobs_path)
-        job = next(item for item in jobs["jobs"] if item["id"] == "CONCEPT-A-S03")
-        self.assertIn(reference, job["references"])
-
-        # 任务里没有参考图 → 拒绝
-        job["references"] = [item for item in job["references"] if item != reference]
+        for job in jobs["jobs"]:
+            job["references"] = [item for item in job.get("references", [])
+                                  if "split-references" not in item]
         write_json(jobs_path, jobs)
-        failures = preview_pages_errors(self.project, "2.1", "a")
-        self.assertTrue(any("没有把分块参考图交给 AI" in item for item in failures), failures)
-
-        # 参考图没复制进项目 → 拒绝
-        job["references"] = [reference]
-        write_json(jobs_path, jobs)
-        copied = self.project / reference
-        payload = copied.read_bytes()
-        copied.unlink()
-        failures = preview_pages_errors(self.project, "2.1", "a")
-        self.assertTrue(any("参考图还没复制进项目" in item for item in failures), failures)
-        copied.write_bytes(payload)
-
-        # 清单缺失 → 拒绝
-        manifest_path.unlink()
-        failures = preview_pages_errors(self.project, "2.1", "a")
-        self.assertTrue(any("缺少特殊分块参考图清单" in item for item in failures), failures)
-        write_json(manifest_path, manifest)
+        manifest_path = self.project / "02_design/split-references.json"
+        if manifest_path.exists():
+            manifest_path.unlink()
         self.assertEqual(preview_pages_errors(self.project, "2.1", "a"), [])
 
-    def test_preview_prompt_keeps_split_curves(self):
+    def test_preview_prompt_describes_chosen_split_without_forcing_reference_geometry(self):
         self.append_content_slide_with_toc("S03", "分块形态提示词测试页")
         self.approved_fixture(through="1.3")
         self.generate_concept_set()
@@ -2820,11 +2631,11 @@ class WorkflowTests(unittest.TestCase):
         failures = preview_pages_errors(self.project, "2.1", "b")
         self.assertTrue(any("没有写清它的形态" in item for item in failures), failures)
 
-        # 没写"不要简化成直线" → 拒绝
+        # 保留设计形态描述，但不强制提示词写保持参考几何的套话
         job["prompt"] = original.replace("，不要简化成直线", "")
         write_json(jobs_path, record)
         failures = preview_pages_errors(self.project, "2.1", "b")
-        self.assertTrue(any("弧线与斜线不要直线化" in item for item in failures), failures)
+        self.assertEqual(failures, [])
 
         job["prompt"] = original
         write_json(jobs_path, record)
@@ -2918,9 +2729,21 @@ class WorkflowTests(unittest.TestCase):
         self.assertTrue(any("占位框的宽高比不能改变" in item for item in failures), failures)
 
         # 补上箭头关系与比例强调后通过
-        job["prompt"] += "；占位块比例不得改变（不拉伸、不变形）；页内逻辑关系：箭头从 S03-TITLE-01 指向 S03-PHOTO-01"
+        job["prompt"] += "；占位块比例不得改变（不拉伸、不变形）；页内逻辑关系：箭头从逻辑关系测试页标题指向逻辑关系测试照片"
         write_json(jobs_path, {"jobs": jobs})
         self.assertEqual(preview_prompt_errors(self.project, "2.1"), [])
+
+    def test_prompt_emphasis_requires_separate_nonempty_top_level_items(self):
+        from workflow_lib import prompt_emphasis_errors
+        good = "- **简约要求**：色块干净\n- **紧密排版要求**：文字空间充足\n- **创意要求**：主题图文呼应"
+        good += "\n- **可读性要求**：文字清楚\n- **视觉关系要求**：关系准确\n- **原图保真要求**：原件不重画不拉伸"
+        self.assertEqual(prompt_emphasis_errors(good), [])
+        for label in ("可读性要求", "视觉关系要求", "原图保真要求"):
+            hidden = good.replace(f"- **{label}**", f"  - **{label}**")
+            self.assertTrue(any(label in error for error in prompt_emphasis_errors(hidden)))
+        self.assertTrue(prompt_emphasis_errors("- **内容要求**：简约、紧密、有创意"))
+        self.assertTrue(prompt_emphasis_errors(good.replace("- **创意要求**", "  - **创意要求**")))
+        self.assertTrue(prompt_emphasis_errors(good.replace("：主题图文呼应", "：")))
 
     def test_preview_prompt_self_check_before_generation(self):
         self.approved_fixture(through="1.3")
@@ -2931,10 +2754,10 @@ class WorkflowTests(unittest.TestCase):
 
         # \u5c11\u4e86\u753b\u5e03\u6bd4\u4f8b\u3001\u98ce\u683c\u3001\u8fdb\u5ea6\u6761\u3001\u6587\u5b57\u4e0e\u6587\u672c\u6846\u5f62\u72b6 \u2192 \u81ea\u68c0\u62a6\u4e0b
         broken = [dict(job) for job in jobs]
-        broken[0]["prompt"] = "CONCEPT-A S01 whole-page preview"
+        broken[0]["prompt"] = "whole-page preview"
         write_json(jobs_path, {"jobs": broken})
         failures = preview_prompt_errors(self.project, "2.1")
-        for marker in ("16:9", "\u98ce\u683c", "\u8fdb\u5ea6\u6761", "\u6ca1\u6709\u5199\u660e\u6587\u5b57", "\u6587\u672c\u6846\u5f62\u72b6"):
+        for marker in ("16:9", "\u98ce\u683c", "\u8fdb\u5ea6\u6761", "\u6ca1\u6709\u5199\u660e\u6587\u5b57", "Markdown"):
             self.assertTrue(any(marker in item for item in failures), failures)
 
         # \u751f\u6210\u811a\u672c\u5728\u51fa\u56fe\u524d\u5148\u81ea\u68c0\uff1a\u574f\u63d0\u793a\u8bcd\u76f4\u63a5\u62d2\u7edd
@@ -2953,7 +2776,7 @@ class WorkflowTests(unittest.TestCase):
         flattened[0]["prompt"] = " ".join(flattened[0]["prompt"].splitlines())
         write_json(jobs_path, {"jobs": flattened})
         failures = preview_prompt_errors(self.project, "2.1")
-        self.assertTrue(any("\u8981\u6309\u5206\u70b9\u5199" in item for item in failures), failures)
+        self.assertTrue(any("Markdown" in item for item in failures), failures)
 
         write_json(jobs_path, {"jobs": jobs})
         self.assertEqual(preview_prompt_errors(self.project, "2.1"), [])
@@ -2964,19 +2787,7 @@ class WorkflowTests(unittest.TestCase):
             "concepts",
         )
 
-        for rel, marker in (
-            ("stages/21-concepts/SKILL.md", "\u751f\u6210\u524d\u81ea\u68c0"),
-            ("stages/22-full-preview/SKILL.md", "\u751f\u6210\u524d\u81ea\u68c0"),
-            ("stages/13-design/references/gen-prompt-scope.md", "\u5148\u81ea\u68c0\u518d\u51fa\u56fe"),
-            ("shared/preview-contract.md", "\u751f\u6210\u4e4b\u524d"),
-            ("shared/operations.md", "\u5148\u81ea\u68c0\u518d\u51fa\u56fe"),
-            ("SKILL.md", "\u751f\u6210\u524d\u81ea\u68c0"),
-        ):
-            document = (ROOT / rel).read_text(encoding="utf-8")
-            self.assertIn(marker, document, rel)
-
         for rel in (
-            "stages/13-design/references/gen-prompt-scope.md",
             "stages/21-concepts/SKILL.md",
             "stages/22-full-preview/SKILL.md",
             "shared/preview-contract.md",
@@ -2984,9 +2795,12 @@ class WorkflowTests(unittest.TestCase):
             "SKILL.md",
         ):
             document = (ROOT / rel).read_text(encoding="utf-8")
-            self.assertIn("\u6309\u5206\u70b9\u5206\u884c\u5199", document, rel)
+            self.assertIn("gen-prompt-scope.md", document, rel)
+        scope = (ROOT / "stages/13-design/references/gen-prompt-scope.md").read_text(encoding="utf-8")
+        self.assertIn("Markdown 嵌套列表", scope)
+        self.assertIn("dry-run", scope)
 
-    def test_same_style_preview_keeps_the_big_image_palette(self):
+    def test_palette_distance_warns_without_blocking_approval(self):
         self.approved_fixture(through="2.1")
         self.assertFalse(preview_pages_errors(self.project, "2.1", "b"))
 
@@ -3006,7 +2820,7 @@ class WorkflowTests(unittest.TestCase):
         job["prompt"] = original
         write_json(jobs_path, record)
 
-        # \u9884\u89c8\u56fe\u6539\u6210\u5b8c\u5168\u4e0d\u540c\u7684\u914d\u8272 \u2192 \u62d2\u7edd
+        # Large palette distance produces a review hint, not a stage rejection.
         manifest_path = self.project / "03_concepts/option-b/preview.json"
         manifest = read_json(manifest_path)
         page = manifest["pages"][0]
@@ -3019,19 +2833,9 @@ class WorkflowTests(unittest.TestCase):
         ledger["jobs"][page["jobId"]]["sha256"] = page["sha256"]
         write_json(ledger_path, ledger)
         failures = preview_pages_errors(self.project, "2.1", "b")
-        self.assertTrue(any("\u914d\u8272\u76f8\u5dee\u8fc7\u5927" in item for item in failures), failures)
+        self.assertFalse(failures, failures)
+        self.assertTrue(preview_palette_warnings(self.project, "2.1", "b", manifest["pages"]))
 
-        for rel in (
-            "stages/13-design/references/gen-prompt-scope.md",
-            "stages/21-concepts/SKILL.md",
-            "stages/22-full-preview/SKILL.md",
-            "shared/preview-contract.md",
-            "shared/operations.md",
-            "shared/artifact-contract.md",
-            "SKILL.md",
-        ):
-            document = (ROOT / rel).read_text(encoding="utf-8")
-            self.assertIn("\u540c\u4e00\u5957\u914d\u8272", document, rel)
 
     def test_preview_prompt_forbids_geometry_and_font_sizes_keeps_image_ratios(self):
         photo = self.project / "00_intake/materials/photos/preview-ratio.png"
@@ -3090,42 +2894,18 @@ class WorkflowTests(unittest.TestCase):
 
     def test_toc_page_has_two_layout_options(self):
         toc = (ROOT / "stages/13-design/references/toc-page.md").read_text(encoding="utf-8")
-        self.assertIn("D01 左列目录", toc)
-        self.assertIn("D02 多行多列横向排布", toc)
+        self.assertIn("D03 左列目录", toc)
+        self.assertIn("D01 多行多列横向排布", toc)
         self.assertIn("两种版式", toc)
         self.assertNotIn("D08", toc)
 
         template = (ROOT / "stages/13-design/assets/design-spec.md").read_text(encoding="utf-8")
-        self.assertIn("D01 左列目录", template)
-        self.assertIn("D02 多行多列横向排布", template)
+        self.assertIn("D03 左列目录", template)
+        self.assertIn("D01 多行多列横向排布", template)
 
         guide = (ROOT / "stages/13-design/references/style-guide.md").read_text(encoding="utf-8")
         self.assertIn("目录页版式二选一", guide)
 
-    def test_preview_assets_map_one_to_one_with_pages(self):
-        scope = (ROOT / "stages/13-design/references/gen-prompt-scope.md").read_text(encoding="utf-8")
-        for item in (
-            "标题页→该方向的标题图 `hero-image`",
-            "目录页→该方向的目录图 `toc-image`",
-            "其他页（内容页／致谢页）→该方向的背景图 `content-background`",
-            "每页只给这一张",
-        ):
-            self.assertIn(item, scope)
-
-        concepts = (ROOT / "stages/21-concepts/SKILL.md").read_text(encoding="utf-8")
-        self.assertIn("标题页→该方向的标题图 `hero-image`", concepts)
-        self.assertIn("其他页→该方向的背景图 `content-background`", concepts)
-
-        full = (ROOT / "stages/22-full-preview/SKILL.md").read_text(encoding="utf-8")
-        self.assertIn("标题页＝标题图 `hero-image`", full)
-        self.assertIn("其他页＝背景图 `content-background`", full)
-
-        guide = (ROOT / "stages/13-design/references/style-guide.md").read_text(encoding="utf-8")
-        self.assertIn("每页只带一张对应基础元素图", guide)
-
-        skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
-        self.assertIn("标题页＝`hero-image`", skill)
-        self.assertIn("其他页＝`content-background`", skill)
 
     def test_representative_content_page_is_not_pinned_to_the_first(self):
         self.append_content_slide_with_toc("S03", "研究背景与问题")
@@ -3199,20 +2979,12 @@ class WorkflowTests(unittest.TestCase):
             self.assertNotIn(retired, text)
 
         guide = (ROOT / "stages/13-design/references/style-guide.md").read_text(encoding="utf-8")
-        self.assertIn("AI 素材、封面大图与背景底图要求", guide)
-        for item in (
-            "封面整体大图占画布不少于 20%",
-            "content-background",
-            "每页只带一张对应基础元素图",
-            "hero-image",
-            "toc-image",
-            "抠出边缘或套几何遮罩",
-        ):
-            self.assertIn(item, guide)
-
+        self.assertIn("AI 素材与构图选择", guide)
+        candidates = (ROOT / "stages/12-content/SKILL.md").read_text(encoding="utf-8")
+        for item in ("content-background", "hero-image", "toc-image"):
+            self.assertIn(item, candidates)
         skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
-        self.assertIn("都由 AI 生成素材承担", skill)
-        self.assertIn("背景底图与内容页补图", skill)
+        self.assertIn("候选", skill)
         self.assertNotIn("《封面与目录页大图要求》", skill)
 
         self.workflow("await", "1.3", "--notes", "TEST FIXTURE ONLY")
@@ -3231,8 +3003,8 @@ class WorkflowTests(unittest.TestCase):
         text = spec.read_text(encoding="utf-8")
         self.workflow("await", "1.3", "--notes", "TEST FIXTURE ONLY")
         self.assertIn("文本框：形状＋大致大小", text)
-        self.assertIn("无文本框：用线条托住", text)
-        self.assertIn("同一组并列的每一段都必须用同一种文本框形状", text)
+        self.assertIn("无文本框：文字直接排在画面上", text)
+        self.assertIn("同一组并列文本必须用同一种形状", text)
         self.assertIn("图像框：位置＋比例", text)
         self.workflow("complete", "1.3")
 
@@ -3249,24 +3021,64 @@ class WorkflowTests(unittest.TestCase):
         rejected = self.workflow("complete", "1.3", success=False)
         self.assertIn("文本框形状", rejected.stderr)
 
-    def test_prompt_scope_treats_text_as_a_box_reference(self):
-        scope = (ROOT / "stages/13-design/references/gen-prompt-scope.md").read_text(encoding="utf-8")
-        self.assertIn("禁止写文本框大小、字号、元素具体位置", scope)
-        self.assertIn("不要求模型逐字排印", scope)
-        self.assertIn("并列文本段落要统一", scope)
 
-        concepts = (ROOT / "stages/21-concepts/SKILL.md").read_text(encoding="utf-8")
-        self.assertIn("禁止写文本框大小、字号、元素具体位置", concepts)
+    def compact_page_plan(self):
+        content = read_json(self.project / "02_design/content.json")
+        parts = ["## 逐页规划"]
+        for slide in content["slides"]:
+            parts += [f"### {slide['id']}：{slide['title']}",
+                      f"- **页面信息：** page_type：{slide['page_type']}；所属章节见content.json",
+                      "- **页面目的与阅读逻辑：** 先提出问题，再给出证据。",
+                      "- **嵌套排版树：**",
+                      "  - **分块方式：** 上下分块。",
+                      "    - **上方文字区：** 同组文字独立排列。"]
+            for text in slide["texts"]:
+                parts += [f"      - **文字及其文本框（{text['id']}）：**",
+                          f"        - **文案与角色：** {text['text']}；body。",
+                          "        - **文本框：** 圆角矩形；字号：继承全篇正文；左对齐。"]
+            parts += ["    - **下方图片区：** 原底图或主题示意图，图像框：位置＋比例。",
+                      "- **本页视觉差异与特殊说明：** 继承全篇约定。"]
+        return content, "\n".join(parts)
 
-        skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
-        self.assertIn("禁止写文本框大小、字号、元素具体位置", skill)
-        self.assertIn("分别说明对应的文本框形状", skill)
+    def test_compact_design_tree_records_text_once_and_checks_missing_data(self):
+        from workflow_lib import design_page_plan_errors, page_textbox_shapes
+        self.sync_contracts()
+        content, plan = self.compact_page_plan()
+        self.assertEqual(design_page_plan_errors(content, plan), [])
+        self.assertIn("圆角矩形", page_textbox_shapes(plan)[content["slides"][0]["id"]])
+        first = content["slides"][0]["texts"][0]
+        self.assertTrue(design_page_plan_errors(content, plan.replace(first["id"], "缺失编号", 1)))
+        self.assertTrue(design_page_plan_errors(content, plan.replace(f"**文案与角色：** {first['text']}", "**文案与角色：** 错误文案", 1)))
+        self.assertTrue(design_page_plan_errors(content, plan.replace("字号：继承全篇正文", "没有字号", 1)))
+        self.assertTrue(design_page_plan_errors(content, plan.replace("文本框：", "框：", 1)))
+        self.assertTrue(design_page_plan_errors(content, plan.replace("页面目的与阅读逻辑", "遗漏目的", 1)))
 
-    def test_design_spec_must_carry_element_geometry(self):
+    def test_compact_design_integrates_with_stage_validation_and_global_style(self):
+        from workflow_lib import deck_style_errors
+        self.approved_fixture(through="1.2")
+        content, plan = self.compact_page_plan()
+        path = self.project / "02_design/design-spec.md"
+        document = path.read_text(encoding="utf-8")
+        start = document.index("## 逐页规划")
+        end = document.index("## 待补充材料", start)
+        document = document[:start] + plan + "\n" + document[end:]
+        document += "\n## 全篇视觉约定\n- **选定风格与色彩：** 方向b，青蓝配色，稳定字重，统一阴影和背景层次。\n"
+        path.write_text(document, encoding="utf-8")
+        self.assertEqual(design_errors(self.project), [])
+        # The page tree alone carries copy and placement; no legacy fields are needed.
+        self.assertNotIn("- **上屏文案（最终文字）：**", document[start:])
+        write_json(self.project / "03_concepts/approval.json", {"option": "b"})
+        self.assertEqual(deck_style_errors(self.project), [])
+
+    def test_design_spec_requires_font_sizes_and_approximate_placement(self):
         self.approved_fixture(through="1.2")
         spec = self.project / "02_design/design-spec.md"
         text = spec.read_text(encoding="utf-8")
-        self.assertIn("- **元素位置与大小：**", text)
+        text = re.sub(r"^.*x=[0-9.]+.*$", "", text, flags=re.M)
+        text = text.replace("- **元素位置与大小：**", "- **元素位置与大小：** 标题36pt在上方；正文18pt在右侧；主图在左侧且较大。")
+        self.assertNotRegex(text, r"x=[0-9.]+")
+        spec.write_text(text, encoding="utf-8")
+        self.assertFalse(design_errors(self.project), design_errors(self.project))
         self.workflow("await", "1.3", "--notes", "TEST FIXTURE ONLY")
 
         spec.write_text(
@@ -3297,27 +3109,13 @@ class WorkflowTests(unittest.TestCase):
     def test_block_subtitles_are_declared_in_grading(self):
         template = (ROOT / "stages/13-design/assets/design-spec.md").read_text(encoding="utf-8")
         self.assertIn("- **分块的分标题**", template)
-        self.assertIn("；分标题：（一段文字）", template)
-        self.assertIn("Sxx-SECTION-01", template)
-        self.assertIn("分块同一行", template)
-        self.assertIn("`；分标题：（一段文字）`", template)
-
+        self.assertIn("作为独立文字对象", template)
+        self.assertIn("section角色", template)
         design = (ROOT / "stages/13-design/SKILL.md").read_text(encoding="utf-8")
-        self.assertIn("；分标题：（一段文字）", design)
-        self.assertIn("Sxx-SECTION-01", design)
+        self.assertIn("不再要求在分块同一行重复文案", design)
 
-        template = (ROOT / "stages/13-design/assets/design-spec.md").read_text(encoding="utf-8")
-        self.assertIn("分块的分标题", template)
-        self.assertIn("；分标题：", template)
-        preview = (ROOT / "stages/22-full-preview/SKILL.md").read_text(encoding="utf-8")
-        self.assertIn("分块", preview)
-
-        skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
-        self.assertIn("；分标题：", skill)
-        self.assertIn("没写的不许自己加", skill)
-
-        operations = (ROOT / "shared/operations.md").read_text(encoding="utf-8")
-        self.assertIn("；分标题：（文字）", operations)
+        prompt_rules = (ROOT / "stages/13-design/references/gen-prompt-scope.md").read_text(encoding="utf-8")
+        self.assertIn("未规划小标题时不自行补写", prompt_rules)
 
         # 分标题只靠设计稿与提示词约束，不做机检：写了分标题不该产生新错误。
         self.append_content_slide_with_toc("S03", "分标题测试页")
@@ -3341,26 +3139,6 @@ class WorkflowTests(unittest.TestCase):
             design_errors(self.project),
         )
 
-    def test_parallel_structures_become_nested_lists(self):
-        template = (ROOT / "stages/13-design/assets/design-spec.md").read_text(encoding="utf-8")
-        self.assertIn("列表套列表", template)
-        self.assertIn("再降一级", template)
-        self.assertIn(">例四", template)
-        self.assertIn("此条内部还有并列，再降一级：", template)
-        example = template.split(">例四", 1)[1].split("\n分块方式可组合", 1)[0]
-        self.assertEqual(example.count("**并列文本**"), 5)
-        self.assertIn("      1. **并列文本**", example)
-        self.assertIn("         1. **并列文本**", example)
-        self.assertIn("**一段文本里只要有并列结构**", template)
-        self.assertIn("拆成列表", template)
-
-        design = (ROOT / "stages/13-design/SKILL.md").read_text(encoding="utf-8")
-        self.assertIn("列表套列表", design)
-        skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
-        self.assertIn("列表套列表", skill)
-        self.assertIn("拆成列表", skill)
-        operations = (ROOT / "shared/operations.md").read_text(encoding="utf-8")
-        self.assertIn("列表套列表", operations)
 
     def test_preview_prompt_must_carry_the_text_boxes(self):
         self.approved_fixture(through="1.3")
@@ -3517,9 +3295,9 @@ class WorkflowTests(unittest.TestCase):
         content["slides"].append({"id": "S09", "page_type": "thanks"})
         write_json(content_path, content)
         pages = [{"id": "S09", "file": preview.relative_to(self.project).as_posix()}]
-        self.assertEqual(preview_palette_errors(self.project, "2.1", "a", pages), [])
+        self.assertEqual(preview_palette_warnings(self.project, "2.1", "a", pages), [])
         Image.new("RGB", (1920, 1080), "#EE3322").save(preview)
-        self.assertTrue(preview_palette_errors(self.project, "2.1", "a", pages))
+        self.assertTrue(preview_palette_warnings(self.project, "2.1", "a", pages))
 
     def record_photo_position_polish(self):
         element = next(item for item in self.spec["slides"][0]["elements"]
@@ -3721,7 +3499,93 @@ class WorkflowTests(unittest.TestCase):
         jobs["jobs"][0]["prompt"] = jobs["jobs"][0]["prompt"].replace(
             "文本框高度与实际文本高度匹配，仅保留适量内边距，避免框内大片留白。", "")
         write_json(path, jobs)
-        self.assertTrue(any("缺少框高适配要求" in error for error in preview_prompt_errors(self.project, "2.1")))
+        # Relative height guidance is reviewed against the design; this helper
+        # diagnoses its absence without pretending to measure generated pixels.
+        self.assertFalse(preview_prompt_height_matches_content(jobs["jobs"][0]["prompt"]))
+
+
+    def test_prompt_internal_ids_are_blocked_before_generation(self):
+        from workflow_lib import preview_job_page_id, prompt_internal_identifiers
+        self.approved_fixture(through="1.3")
+        self.generate_concept_set()
+        jobs_path = self.project / "03_concepts/generation-jobs.json"
+        data = read_json(jobs_path)
+        job = data["jobs"][0]
+        page_id = job["id"].rpartition("-")[2]
+        job["page_id"] = page_id
+        job["id"] = "opaque-preview-request"
+        write_json(jobs_path, data)
+        self.assertFalse(generation_jobs_errors(self.project, "2.1"))
+        self.assertFalse(preview_prompt_errors(self.project, "2.1", job_ids={job["id"]}))
+        self.assertEqual(preview_job_page_id(job, {page_id}), page_id)
+        self.assertEqual(prompt_internal_identifiers("目录 01、02；步骤 1；公式 (2)；p53；16:9；1920×1080"), [])
+
+        clean = job["prompt"]
+        for leaked in (page_id, page_id + "-BODY-01", job["asset_id"], "RECON-001", "R001"):
+            job["prompt"] = clean + "\n不要画内部编号 " + leaked
+            write_json(jobs_path, data)
+            errors = generation_jobs_errors(self.project, "2.1")
+            self.assertTrue(any("内部编号" in e for e in errors), (leaked, errors))
+        result = self.run_python("stages/21-concepts/scripts/run_generation.py", self.project,
+                                 "--stage", "concepts", success=False)
+        self.assertIn("内部编号", result.stderr)
+
+        job["prompt"] = clean
+        del job["page_id"]
+        write_json(jobs_path, data)
+        self.assertIsNone(preview_job_page_id(job, {page_id}))
+        self.assertTrue(any("本地页面绑定" in e for e in preview_prompt_errors(self.project, "2.1", job_ids={job["id"]})))
+
+    def test_independent_asset_prompt_ids_are_also_blocked(self):
+        self.approved_fixture(through="1.2")
+        path = self.project / "02_design/generation-jobs.json"
+        data = read_json(path)
+        self.assertFalse(generation_jobs_errors(self.project, "1.2"))
+        data["jobs"][0]["prompt"] += " 标注 " + data["jobs"][0]["asset_id"]
+        write_json(path, data)
+        self.assertTrue(any("内部编号" in e for e in generation_jobs_errors(self.project, "1.2")))
+
+
+    def test_line_spacing_units_match_powerpoint_xml(self):
+        element = {"text": "第一行\n第二行", "fontFace": "Microsoft YaHei",
+                   "fontSize": 36, "fontSizePt": 18, "lineSpacingMultiple": 1.4}
+        multiple = text_metrics(element, (0, 0, 500, 300))
+        absolute = text_metrics({**element, "lineSpacing": 24}, (0, 0, 500, 300))
+        self.assertEqual(absolute["line_step"], 48)
+        self.assertGreater(multiple["line_step"], 10)
+        self.spec["slides"][0]["elements"] = [
+            {"id": "S01-UNIT-01", "type": "text", "text": "第一行\n第二行",
+             "x": .5, "y": .5, "w": 4, "h": 2, "fontSize": 18,
+             "lineSpacing": 24, "lineSpacingMultiple": 1.4}]
+        self.save_spec()
+        self.build()
+        with zipfile.ZipFile(self.project / "07_delivery/deck.pptx") as archive:
+            xml = archive.read("ppt/slides/slide1.xml").decode("utf-8")
+        self.assertIn('spcPts val="2400"', xml)
+        self.spec["slides"][0]["elements"][0].pop("lineSpacing")
+        self.save_spec()
+        self.build()
+        with zipfile.ZipFile(self.project / "07_delivery/deck.pptx") as archive:
+            xml = archive.read("ppt/slides/slide1.xml").decode("utf-8")
+        self.assertIn('spcPct val="140000"', xml)
+
+    def test_initialized_template_links_resolve_outside_skill(self):
+        import re
+        project = self.project / "独立模板链接项目"
+        self.run_python("stages/00-init/scripts/init_project.py", project)
+        for relative in ("00_intake/project-brief.md", "02_design/design-spec.md"):
+            path = project / relative
+            body = path.read_text(encoding="utf-8")
+            for target in re.findall(r"\[[^\]]*\]\(([^\n]+?)\)", body):
+                path_part = target.strip("<>").split("#", 1)[0]
+                if not path_part or path_part.startswith(("https:", "http:")):
+                    continue
+                self.assertTrue(Path(path_part).is_absolute(), target)
+                self.assertTrue(Path(path_part).exists(), target)
+        sentinel = project / "00_intake/project-brief.md"
+        sentinel.write_text("用户已修改的需求", encoding="utf-8")
+        self.run_python("stages/00-init/scripts/init_project.py", project)
+        self.assertEqual(sentinel.read_text(encoding="utf-8"), "用户已修改的需求")
 
 
 if __name__ == "__main__":

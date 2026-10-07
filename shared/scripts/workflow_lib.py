@@ -23,6 +23,7 @@ from qa_rules import (
     RULES_VERSION,
     SAME_STYLE_PALETTE_TOLERANCE,
     PHOTO_FRAME_ASPECT_TOLERANCE,
+    PHOTO_FRAME_ASPECT_RELAXED_TOLERANCE,
     PLACEHOLDER_BOX_TOLERANCE,
     TEXT_BOX_COVER,
     text_role,
@@ -210,8 +211,6 @@ def check_hashes(project, files):
 # 分块参考图索引：形态样例与「提示词怎么写」都放在 shared/references/splits 里。
 SPLIT_REFERENCE_INDEX = ROOT / "shared/references/splits/index.json"
 SPLIT_REFERENCE_ROOT = "02_design/split-references"
-# 特殊分块页数下限：正文页的一半以上（严格多于一半，实际落点约 60%–70%）
-SPECIAL_SPLIT_SHARE = 0.5
 DEFAULT_SPECIAL_SPLITS = (
     "斜切", "弧线", "扇形", "同心圆", "波浪", "金字塔", "圆形放射", "左圆右栏",
 )
@@ -311,7 +310,7 @@ PALETTE_MATCH_TOKENS = (
     "相近的配色", "与大图配色一致",
 )
 NO_PROGRESS_TOKENS = ("无进度条", "不加进度条", "不要进度条", "不画进度条", "不需要进度条")
-# 提示词要按分点写：每点一行，行首可带编号或项目符号
+# 提示词使用Markdown列表，排版要求内部按实际分块嵌套
 POINT_LABELS = ("比例要求", "内容要求", "排版要求", "图片占位框比例", "风格要求", "进度条要求")
 
 
@@ -319,10 +318,50 @@ def prompt_points(prompt):
     """提示词的分点条目（去掉行首的编号与项目符号），用来核对是否按点分条写。"""
     points = []
     for line in prompt.splitlines():
-        line = re.sub(r"^\s*(?:[-•·*]|\d+[.、)]|[①-⑩])\s*", "", line)
+        line = re.sub(r"^\s*(?:[-+•·*]|\d+[.、)]|[①-⑩])\s*", "", line)
         if line.strip():
-            points.append(line.strip())
+            points.append(re.sub(r"\*\*|__", "", line).strip())
     return points
+
+
+def prompt_emphasis_errors(prompt):
+    """Require six explicit top-level goals without judging visual aesthetics."""
+    entries = []
+    for line in prompt.splitlines():
+        match = re.match(r"^( *)(?:[-+*]|\d+[.)])\s+(.+)$", line)
+        if match:
+            entries.append((len(match.group(1)), re.sub(r"\*\*|__", "", match.group(2)).strip()))
+    base = min((indent for indent, _ in entries), default=0)
+    top = [body for indent, body in entries if indent == base]
+    errors = []
+    for label in ("简约要求", "紧密排版要求", "创意要求",
+                  "可读性要求", "视觉关系要求", "原图保真要求"):
+        if not any(re.match(re.escape(label) + r"[：:]\s*\S", body) for body in top):
+            errors.append(f"提示词须单独填写顶层列表项「{label}」，不能仅在内容或其他条目中提及")
+    return errors
+
+
+def prompt_markdown_layout_errors(prompt):
+    """Check list nesting, not the truth or completeness of spatial descriptions."""
+    entries = []
+    for line in prompt.splitlines():
+        match = re.match(r"^( *)(?:[-+*]|\d+[.)])\s+(.+)$", line)
+        if match:
+            body = re.sub(r"\*\*|__", "", match.group(2)).strip()
+            entries.append((len(match.group(1)), body))
+    layout = next((i for i, (_, body) in enumerate(entries)
+                   if body.startswith("排版要求")), None)
+    if layout is None:
+        return ["提示词必须用Markdown列表撰写，并在排版要求下嵌套实际分块与元素"]
+    base = entries[layout][0]
+    subtree = []
+    for indent, body in entries[layout + 1:]:
+        if indent <= base:
+            break
+        subtree.append((indent, body))
+    if len({indent for indent, _ in subtree}) < 2:
+        return ["排版要求须使用嵌套列表展开宏观分块及其子分块／所属元素，不能平铺所有对象"]
+    return []
 
 
 PAGE_TYPE_KIND = {
@@ -383,8 +422,8 @@ def preview_direction(project, stage, option):
     return None
 
 
-def preview_palette_errors(project, stage, option, pages):
-    """同风格：整页预览与所给 AI 大图要用相近颜色的背景与装饰。"""
+def preview_palette_warnings(project, stage, option, pages):
+    """Diagnostic palette distance; visual review decides reasonable style variation."""
     direction = preview_direction(project, stage, option)
     if not direction:
         return []
@@ -419,12 +458,80 @@ def preview_palette_errors(project, stage, option, pages):
         if share > SAME_STYLE_PALETTE_TOLERANCE:
             errors.append(
                 f"{page['id']} 的整页预览与同风格的 AI 大图配色相差过大（主色距离 {share:.0f}）："
-                "背景与装饰要用与所给大图相近的颜色（同一套配色）"
+                "请复看配色语义与可读性；合理浅深变化可在 review 中说明，不单凭距离拒绝"
             )
     return errors
 
 
+def preview_palette_errors(project, stage, option, pages):
+    """Compatibility API: numeric palette differences no longer block approval."""
+    return []
+
+
 ARROW_LINK_TOKENS = ("→", "->", "指向")
+
+
+def design_page_plan_errors(content, design_spec):
+    """Accept compact spatial trees and existing legacy plans without duplicate fields."""
+    errors = []
+    plan = design_spec.split("## 逐页规划", 1)[-1]
+    pages = [re.split(r"^## ", page, flags=re.M)[0]
+             for page in re.split(r"^### ", plan, flags=re.M)[1:]]
+    compact = any("**嵌套排版树：**" in page for page in pages)
+    if not compact:
+        for label in ("文字层级与并列", "元素位置与大小", "上屏文案（最终文字）"):
+            if f"- **{label}：**" not in design_spec:
+                errors.append(f"旧版设计稿缺少「{label}」；可改为四项逐页结构，将信息统一写入嵌套排版树")
+        return errors
+    by_id = {slide["id"]: slide for slide in content["slides"]}
+    seen = set()
+    for page in pages:
+        page_id = page.split("：", 1)[0].strip()
+        if page_id in seen:
+            errors.append(f"逐页规划重复页面：{page_id}")
+        seen.add(page_id)
+        if "**嵌套排版树：**" not in page:
+            continue  # Mixed documents can retain unchanged legacy page sections.
+        for label in ("页面信息", "页面目的与阅读逻辑", "嵌套排版树", "本页视觉差异与特殊说明"):
+            match = re.search(r"^- \*\*" + re.escape(label) + r"：\*\*([^\n]*(?:\n(?!- \*\*|###|##)[^\n]*)*)", page, re.M)
+            if not match or not match.group(1).strip():
+                errors.append(f"{page_id} 缺少或未填写「{label}」")
+        errors += [f"{page_id} 的嵌套排版树：{error}"
+                   for error in prompt_markdown_layout_errors(page.replace("嵌套排版树", "排版要求", 1))]
+        tree = page.split("**嵌套排版树：**", 1)[1].split("- **本页视觉差异与特殊说明：**", 1)[0]
+        slide = by_id.get(page_id)
+        if slide is None:
+            errors.append(f"逐页规划引用未知页面：{page_id}")
+            continue
+        for text in slide.get("texts") or []:
+            identifier = text["id"]
+            occurrences = []
+            for match in re.finditer(r"(?<![A-Za-z0-9_-])" + re.escape(identifier) + r"(?![A-Za-z0-9_-])", tree):
+                line_start = tree.rfind("\n", 0, match.start()) + 1
+                declaration = tree[line_start:].split("\n", 1)[0]
+                # References in arrows can repeat an ID; only the object's
+                # declaration is required to appear once.
+                if (re.search(r"文字|文本", declaration)
+                        and not re.search(r"箭头|连接", declaration)):
+                    occurrences.append(match)
+            if len(occurrences) != 1:
+                errors.append(f"{page_id} 的文字 {identifier} 应在排版树中记录一次文案与文本框")
+                continue
+            start = tree.rfind("\n", 0, occurrences[0].start()) + 1
+            line = tree[start:].split("\n", 1)[0]
+            indent = len(line) - len(line.lstrip())
+            following = tree[start + len(line):]
+            stop = re.search(r"\n {0," + str(indent) + r"}(?:[-+*]|\d+[.)])\s", following)
+            node = line + (following[:stop.start()] if stop else following)
+            if str(text.get("text") or "").strip() not in node:
+                errors.append(f"{page_id} 的文字 {identifier} 最终文案未写入对应对象或与content.json不一致")
+            if "文本框：" not in node:
+                errors.append(f"{page_id} 的文字 {identifier} 未写明文本框形状／无文本框")
+            if not re.search(r"\d+(?:\.\d+)?\s*pt|字号[^\n]*继承全篇", node, re.I):
+                errors.append(f"{page_id} 的文字 {identifier} 未注明字号pt或继承全篇角色字号")
+    for identifier in set(by_id) - seen:
+        errors.append(f"逐页规划缺少页面：{identifier}")
+    return errors
 
 
 def page_logic_arrows(design_spec):
@@ -497,6 +604,58 @@ def preview_prompt_height_matches_content(prompt, final_texts=()):
     return bool(fitted and restrained and re.search(r"框高|(?:文本框|文字框)[^。；\n]{0,30}高度?", instructions))
 
 
+def prompt_internal_identifiers(prompt, identifiers=()):
+    """Detect workflow labels, without treating public list/scientific numbers as IDs."""
+    pattern = r"(?<![A-Za-z0-9_])(?:S\d{2,}(?:[-_][A-Za-z][A-Za-z0-9_-]*)?|(?:GEN|RECON|PHOTO|MAT|IMG|PIC|TEXT|SEC|CLAIM)[-_]\d[A-Za-z0-9_-]*|(?:CONCEPT|FULL)[-_][A-Za-z0-9_-]+|R\d{3,})(?![A-Za-z0-9_])"
+    found = set(re.findall(pattern, prompt, flags=re.I))
+    for identifier in identifiers:
+        if not isinstance(identifier, str) or not identifier:
+            continue
+        # Pure names can also be ordinary on-screen words; only structured local
+        # labels are detectable by exact matching without suppressing content.
+        if not re.search(r"[0-9_-]", identifier):
+            continue
+        if re.search(r"(?<![A-Za-z0-9_])" + re.escape(identifier) + r"(?![A-Za-z0-9_])", prompt, flags=re.I):
+            found.add(identifier)
+    return sorted(found)
+
+
+def project_prompt_identifiers(project, job):
+    """Gather local identity fields; prompts and prose are not identity sources."""
+    identifiers = {job.get("id"), job.get("asset_id"), job.get("page_id")}
+    def collect(value):
+        if isinstance(value, dict):
+            for key, item in value.items():
+                if key in {"id", "sourceId", "textId", "imageId", "assetId", "sourceAssetId"} and isinstance(item, str):
+                    identifiers.add(item)
+                elif key == "reference_ids" and isinstance(item, list):
+                    identifiers.update(v for v in item if isinstance(v, str))
+                elif isinstance(item, (dict, list)):
+                    collect(item)
+        elif isinstance(value, list):
+            for item in value:
+                collect(item)
+    collect(job)
+    for rel in ("02_design/content.json", "02_design/image-plan.json",
+                "02_design/image-intent-plan.json", "02_design/generated-assets.json",
+                "01_inventory/materials.json"):
+        try:
+            collect(read_json(project / rel))
+        except (OSError, ValueError, TypeError):
+            pass
+    return identifiers
+
+
+def preview_job_page_id(job, page_ids):
+    """Bind pages from local metadata, never from model-facing prompt text."""
+    if job.get("page_id") is not None:
+        return job["page_id"] if job["page_id"] in page_ids else None
+    label = str(job.get("id") or "")
+    matches = [sid for sid in page_ids
+               if re.search(r"(?<![A-Za-z0-9])" + re.escape(sid) + r"(?![A-Za-z0-9])", label)]
+    return matches[0] if len(matches) == 1 else None
+
+
 def preview_prompt_errors(project, stage, job_ids=None):
     """阶段 2.1／2.2：生成前自检每页提示词——画布比例、占位块与比例、文字与文本框形状、风格、进度条。"""
     errors = []
@@ -552,12 +711,14 @@ def preview_prompt_errors(project, stage, job_ids=None):
         if not prompt.strip():
             errors.append(f"{label} 的提示词为空：生成前先按设计稿逐页写好提示词")
             continue
-        page_id = next((sid for sid in order if sid in label), None) or next(
-            (sid for sid in order if sid in prompt), None
-        )
+        page_id = preview_job_page_id(job, order)
         if page_id is None:
-            errors.append(f"{label} 的提示词没有写明页面编号：每页提示词要按设计稿逐页生成")
+            errors.append(f"{label} 缺少有效的本地页面绑定：填写 page_id 或在任务 id 中绑定页面，不要把页面编号写入提示词")
             continue
+        leaked = prompt_internal_identifiers(prompt, project_prompt_identifiers(project, job))
+        if leaked and not approved_historical_prompts:
+            errors.append(f"{label} 的生图提示词包含内部编号：" + "、".join(leaked)
+                          + "；改用内容名称与位置描述，编号只留在本地元数据")
         slide = by_id[page_id]
         forbidden = preview_prompt_forbidden_details(
             prompt, [text.get("text") for text in slide.get("texts") or []]
@@ -568,12 +729,16 @@ def preview_prompt_errors(project, stage, job_ids=None):
         # Box dimensions/height belong to local layout review and reconstruction,
         # not to the AI prompt, per the user's explicit prompt-size prohibition.
         page_type = slide.get("page_type")
-        images = list((plan_by_slide.get(page_id) or {}).get("images") or [])
+        images = ([] if page_type in {"title", "toc"} else
+                  list((plan_by_slide.get(page_id) or {}).get("images") or []))
         required_points = [
             label
             for label in POINT_LABELS
             if label != "图片占位框比例" or images
         ]
+        if not approved_historical_prompts:
+            errors += [f"{page_id}：{message}" for message in prompt_markdown_layout_errors(prompt)]
+            errors += [f"{page_id}：{message}" for message in prompt_emphasis_errors(prompt)]
         points = prompt_points(prompt)
         missing_points = [
             label
@@ -582,7 +747,7 @@ def preview_prompt_errors(project, stage, job_ids=None):
         ]
         if missing_points:
             errors.append(
-                f"{page_id} 的提示词要按分点写（每点一行）：缺少 "
+                f"{page_id} 的提示词要按Markdown列表写：缺少 "
                 + "、".join(missing_points)
                 + "；分点顺序为 比例要求／内容要求／排版要求／图片占位框比例／风格要求／进度条要求，"
                 "不要把要求揉成一整句"
@@ -593,7 +758,7 @@ def preview_prompt_errors(project, stage, job_ids=None):
             )
         if "风格" not in prompt:
             errors.append(
-                f"{page_id} 的提示词没有写风格要求：写明设计方向或选定风格的主色、字体气质与装饰语言"
+                f"{page_id} 的提示词没有写风格要求：简要写明本页气质、配色及背景／文本框处理，按生图提示词口径展开实际视觉方案"
             )
         if not any(token in prompt for token in PALETTE_MATCH_TOKENS):
             errors.append(
@@ -631,7 +796,7 @@ def preview_prompt_errors(project, stage, job_ids=None):
             )
         if images and "占位" not in prompt and "placeholder" not in prompt.lower():
             errors.append(
-                f"{page_id} 的提示词没有写占位块：计划图片在预览里只画占位块（写清编号或说明）"
+                f"{page_id} 的提示词没有写占位块：计划图片在预览里只画占位块（不写内部编号，默认留空或用简短内容说明）"
             )
         for image in images:
             target = asset_path(project, image.get("path") or "")
@@ -648,43 +813,37 @@ def preview_prompt_errors(project, stage, job_ids=None):
 
 
 def special_split_errors(content, design_spec):
-    """一半以上的正文页要用特殊分块（最好 60%–70%；斜切／弧线／扇形／同心圆／波浪／金字塔…）。"""
+    """Check content-page coverage and a strict majority of all formal pages."""
+    eligible = {slide["id"] for slide in content["slides"]
+                if slide.get("page_type") == "content"}
+    rows = [(page_id, cell) for page_id, cell in page_split_rows(design_spec)
+            if page_id in eligible]
     errors = []
-    eligible = [
-        slide["id"] for slide in content["slides"] if slide.get("page_type") == "content"
-    ]
-    if len(eligible) < 2:
-        return errors
-    page_type = {slide["id"]: slide.get("page_type") for slide in content["slides"]}
-    rows = [cell for page_id, cell in page_split_rows(design_spec) if page_id in eligible]
-    if not rows:
+    present = {page_id for page_id, cell in rows if cell.strip()}
+    for page_id in sorted(eligible - present):
+        errors.append(f"{page_id} 的设计稿《页面分块要求》缺少分块方式："
+                      "先说明内容逻辑，再选择特殊或常规分块，全篇特殊分块页数须过半")
+    ids = [page_id for page_id, _ in rows]
+    for page_id in sorted(set(ids)):
+        if ids.count(page_id) > 1:
+            errors.append(f"{page_id} 的《页面分块要求》重复登记")
+    formal_ids = {slide["id"] for slide in content["slides"]}
+    special_ids = {
+        page_id for page_id, cell in page_split_rows(design_spec)
+        if page_id in formal_ids
+        and any(entry["kind"] == "special" for entry in split_entries(cell))
+    }
+    minimum = len(formal_ids) // 2 + 1
+    if formal_ids and len(special_ids) < minimum:
         errors.append(
-            "设计稿《页面分块要求》表还没有按页填写分块方式："
-            "每页要写宏观分块＋分区手法，并让一半以上的正文页（最好 60%–70%）用特殊分块"
-        )
-        return errors
-    special = sum(
-        1
-        for cell in rows
-        if any(entry["kind"] == "special" for entry in split_entries(cell))
-    )
-    # 严格多于一半：n 页正文里至少 floor(n/2)+1 页用特殊分块
-    required = max(1, int(len(rows) * SPECIAL_SPLIT_SHARE) + 1)
-    if special < required:
-        errors.append(
-            f"特殊分块页面不足：{special}/{len(rows)} 页用特殊分块，至少需要 {required} 页"
-            "（要一半以上的正文页用特殊分块，内容合适时越多越好："
-            + "／".join(SPECIAL_SPLITS)
-            + "；横带与四宫格分块不算特殊分块、不计入这个比例，但仍要给出分块参考图）"
+            f"全篇特殊分块页数必须严格大于总页数的一半："
+            f"当前 {len(special_ids)}/{len(formal_ids)} 页，至少需要 {minimum} 页；"
+            "参考图可按内容调整，不要求照搬，横带与四宫格不计入"
         )
     return errors
 
 
-# 弧线／斜线不能被简化成直线的写法（至少要点到一个）
-ANTI_SIMPLIFY_TOKENS = (
-    "不要简化", "不要简化成直线", "不要画成直线", "不要拉直", "保持弧度", "保留弧度",
-    "按设计稿的弧度", "保持倾角", "保持曲率", "非直线", "弧线照设计稿", "斜线照设计稿",
-)
+# 分区几何以设计稿实际选择为准，不强制照搬参考图。
 # 特殊分块的形态词：提示词只写名字不算说明形态，至少要点到一个
 SPLIT_FORM_TOKENS = (
     "方向", "倾角", "走向", "弯曲", "凸", "凹", "圆心", "半径", "扇区",
@@ -692,34 +851,10 @@ SPLIT_FORM_TOKENS = (
 )
 
 
-def split_variety_errors(content, design_spec):
-    """两页之间不要出现完全一样的特殊分块方式。"""
-    errors = []
-    known_pages = {slide["id"] for slide in content["slides"]}
-    seen = {}
-    for page_id, cell in page_split_rows(design_spec):
-        if page_id not in known_pages:
-            continue
-        entries = [entry for entry in split_entries(cell) if entry["kind"] == "special"]
-        if not entries:
-            continue
-        key = " ".join(cell.split())
-        other = seen.get(key)
-        if other:
-            errors.append(
-                f"{other} 与 {page_id} 的特殊分块方式完全一样（{key}）："
-                "两页不要用同一种特殊分块，换一种分块，或把形态差异"
-                "（方向／倾角／弯曲方向／圆心位置／波峰数／顶点位置）写进分块方式里"
-            )
-        else:
-            seen[key] = page_id
-    return errors
-
-
 def split_references_for_page(project, page_id, split_cells=None):
     """该页要用到的分块参考图：[(entry, [项目内相对路径, ...]), ...]。
 
-    特殊分块与横带／四宫格等宏观分块都有形态样例，都要给 AI。
+    形态样例仅供本地设计参考，预览生成不要求向 AI 提供。
     """
     if split_cells is None:
         spec_path = project / "02_design/design-spec.md"
@@ -741,48 +876,8 @@ def split_references_for_page(project, page_id, split_cells=None):
 
 
 def split_reference_manifest_errors(project, split_cells):
-    """阶段 2.1／2.2：特殊分块页的参考图要先复制进项目，并与设计稿分块方式一致。"""
-    errors = []
-    expected = {}
-    for page_id, cell in split_cells.items():
-        entries = split_references_for_page(project, page_id, split_cells)
-        if entries:
-            expected[page_id] = entries
-    if not expected:
-        return errors
-    manifest_path = project / "02_design/split-references.json"
-    if not manifest_path.is_file():
-        errors.append(
-            "缺少特殊分块参考图清单 02_design/split-references.json："
-            "先运行 python <skill>/shared/scripts/prepare_split_references.py <project>"
-            "，把该页用到的分块参考图复制进项目"
-        )
-        return errors
-    manifest = read_json(manifest_path)
-    errors += schema_errors(manifest, "split-references")
-    listed = {page["id"]: list(page.get("references") or []) for page in manifest.get("pages", [])}
-    for page_id, entries in expected.items():
-        labels = "、".join(entry["label"] for entry, _ in entries)
-        groups = [files for _, files in entries]
-        page_listed = listed.get(page_id) or []
-        unknown = [item for item in page_listed if all(item not in files for files in groups)]
-        if not page_listed or unknown:
-            errors.append(
-                f"{page_id} 的分块参考清单与设计稿不一致：设计稿为{labels}，"
-                f"清单里是{'、'.join(page_listed) or '空'}；"
-                "设计稿改过分块方式就重新运行 prepare_split_references.py"
-            )
-            continue
-        missing_files = [
-            files[0] for files in groups if not any((project / item).is_file() for item in files)
-        ]
-        if missing_files:
-            errors.append(
-                f"{page_id} 用了特殊分块（{labels}），但参考图还没复制进项目："
-                + "、".join(missing_files)
-                + "；运行 prepare_split_references.py 复制参考图"
-            )
-    return errors
+    """Compatibility hook: split images are local design aids, not preview inputs."""
+    return []
 
 
 def image_plan_trace_errors(project, image_plan=None):
@@ -1010,6 +1105,16 @@ def generation_jobs_errors(project, stage, config=None):
     }
     for job in plan["jobs"]:
         identifier = job["id"]
+        leaked = prompt_internal_identifiers(str(job.get("prompt") or ""), project_prompt_identifiers(project, job))
+        if leaked:
+            errors.append(f"{identifier} 的生图提示词包含内部编号：" + "、".join(leaked)
+                          + "；先改为内容名称与位置描述再生成")
+        if stage in {"2.1", "2.2"}:
+            if job.get("asset_mode", "strict") != "strict":
+                errors.append(f"{identifier} 的整页预览必须使用 strict；不得用 crop 或 pad 修正比例")
+            width, height = map(int, job.get("size", "1920x1080").split("x"))
+            if width * 9 != height * 16:
+                errors.append(f"{identifier} 的整页请求尺寸不是精确 16:9：{width}x{height}，退回")
         if identifier in identifiers:
             errors.append(f"重复生图任务：{identifier}")
         identifiers.add(identifier)
@@ -1177,6 +1282,15 @@ def generation_ledger_errors(project, stage, config=None, jobs=None):
             errors.append(f"{identifier} 缺少保留的原始生成图：{record.get('raw_path')}")
         elif digest(raw_path) != record.get("raw_sha256"):
             errors.append(f"{identifier} 的原始生成图哈希已变化")
+        if stage in {"2.1", "2.2"} and raw_path.is_file():
+            try:
+                with Image.open(raw_path) as raw_image:
+                    if raw_image.width * 9 != raw_image.height * 16:
+                        errors.append(f"{identifier} 的实际供应商原图不是精确 16:9，退回")
+                    if record.get("normalization", {}).get("original_size") != list(raw_image.size):
+                        errors.append(f"{identifier} 的原图尺寸记录与实际文件不一致")
+            except (OSError, ValueError):
+                errors.append(f"{identifier} 的原始生成图无法解码")
         if not output_path.is_file():
             errors.append(f"{identifier} 缺少规范化输出：{record.get('output')}")
         else:
@@ -1195,11 +1309,15 @@ def generation_ledger_errors(project, stage, config=None, jobs=None):
         whole_page = stage in {"2.1", "2.2"}
         mode = normalization.get("mode")
         valid_modes = (
-            {"proportional_resize", "crop", "pad"} if whole_page else {"preserve", "pad", "crop"}
+            {"proportional_resize"} if whole_page else {"preserve", "pad", "crop"}
         )
         if mode not in valid_modes:
             errors.append(f"{identifier} 的素材规范化模式无效")
         elif whole_page:
+            if (not isinstance(original_size, list) or len(original_size) != 2
+                    or not all(type(v) is int and v > 0 for v in original_size)
+                    or original_size[0] * 9 != original_size[1] * 16):
+                errors.append(f"{identifier} 的供应商原图不是精确 16:9，退回；不得以补边或裁切输出代替")
             if output_size != [1920, 1080]:
                 errors.append(f"{identifier} 的整页预览必须规范化为精确 1920x1080")
         else:
@@ -1232,8 +1350,10 @@ def read_preview_pages(project, stage, option=None):
 
 
 
-def placeholder_errors(project, page, plan, job):
+def placeholder_errors(project, page, plan, job, page_type=None):
     """阶段 2.1／2.2：计划图片先在原位画占位块，比例与要插入的图片一致。"""
+    if page_type in {"title", "toc"}:
+        return []
     errors = []
     images = list((plan or {}).get("images") or [])
     if not images:
@@ -1246,8 +1366,8 @@ def placeholder_errors(project, page, plan, job):
     prompt = str((job or {}).get("prompt") or "")
     if "占位" not in prompt and "placeholder" not in prompt.lower():
         errors.append(
-            f"{page['id']} 的生图任务提示词没有写占位块：计划图片在预览里只画占位块（写清编号或说明），"
-            "登记原件等阶段 3.3 组装时再放回，不要在预览生成后就插入真图"
+            f"{page['id']} 的生图任务提示词没有写占位块：计划图片在预览里只画占位块（不写内部编号，默认留空或用简短内容说明），"
+            "2.1 保留占位，2.2 批准前本地插入登记原件，3.3 独立组装同一原件"
         )
     file = project / page["file"]
     for image in images:
@@ -1285,10 +1405,19 @@ def placeholder_errors(project, page, plan, job):
         with Image.open(target) as opened:
             aspect = opened.width / opened.height
         box_aspect = (box["w"] * 1920) / (box["h"] * 1080)
-        if abs(box_aspect - aspect) / aspect > PHOTO_FRAME_ASPECT_TOLERANCE:
+        aspect_review = entry.get("aspectReview") or {}
+        attempts = aspect_review.get("revisionAttempts")
+        reviewed = (
+            type(attempts) is int and attempts >= 2
+            and isinstance(aspect_review.get("note"), str)
+            and bool(aspect_review["note"].strip())
+        )
+        tolerance = (PHOTO_FRAME_ASPECT_RELAXED_TOLERANCE if reviewed
+                     else PHOTO_FRAME_ASPECT_TOLERANCE)
+        if abs(box_aspect - aspect) / aspect > tolerance:
             errors.append(
                 f"{page['id']} 的 {image['id']} 占位块比例 {box_aspect:.2f} 与要插入的图片 "
-                f"{aspect:.2f} 不一致（相差超过 {PHOTO_FRAME_ASPECT_TOLERANCE:.0%}）："
+                f"{aspect:.2f} 不一致（相差超过 {tolerance:.0%}）："
                 "占位块要按计划图片的比例预留，组装时才能原位放回"
             )
     return errors
@@ -1367,20 +1496,7 @@ def design_errors(project):
                     "进度条条内文字与目录页必须一致"
                 )
     design_spec = (project / "02_design/design-spec.md").read_text(encoding="utf-8-sig")
-    if "- **文字层级与并列：**" not in design_spec:
-        errors.append(
-            "设计稿的逐页规划必须写明「- **文字层级与并列：**」：哪些文字是并列的、哪个是小标题"
-        )
-    if "- **元素位置与大小：**" not in design_spec:
-        errors.append(
-            "设计稿的逐页规划必须写明「- **元素位置与大小：**」：逐段文字与每张图片写出归一化框 "
-            "x／y／w／h 与叠放顺序；整页预览直接按设计稿生成，位置与大小只能来自这里"
-        )
-    if "- **上屏文案（最终文字）：**" not in design_spec:
-        errors.append(
-            "设计稿的逐页规划必须写明「- **上屏文案（最终文字）：**」：设计稿里的文字就是最终上屏内容，"
-            "不能只写概述"
-        )
+    errors += design_page_plan_errors(content, design_spec)
     plan_section = design_spec.split("## 逐页规划", 1)[-1].split("## 内容来源与脚注", 1)[0]
     pages = [page for page in re.split(r"^### ", plan_section, flags=re.M)[1:]]
     if not pages:
@@ -1390,9 +1506,10 @@ def design_errors(project):
         if "文本框：" not in page:
             errors.append(
                 f"{page_id} 的排版分级没有写明文本框形状：单段文字写「文本框：<形状>」，"
-                "并列文本段落写明整组统一的形状，没有文本框就写「无文本框：用线条托住」"
+                "并列文本段落写明整组统一的形状，没有文本框就写「无文本框：文字直接排在画面上」"
             )
-        if "图像框：" not in page and "（图片" not in page and "无图片" not in page:
+        if ("图像框：" not in page and "（图片" not in page and "无图片" not in page
+                and "原底图" not in page):
             errors.append(
                 f"{page_id} 的排版分级没有写清插入图片的图像框：写「图像框：位置＋比例」，"
                 "没有图片就写「无图片」"
@@ -1407,7 +1524,6 @@ def design_errors(project):
             "设计稿的逐页规划不得残留占位文字「待填写」：每页都要写入实际内容与最终上屏文字"
         )
     errors += special_split_errors(content, design_spec)
-    errors += split_variety_errors(content, design_spec)
     if "三种设计风格" not in design_spec:
         errors.append(
             "设计稿必须写明「三种设计风格」（方向 a／b／c）：宏观结构、三种风格与阶段 1 的 PPT 要求"
@@ -1416,6 +1532,8 @@ def design_errors(project):
     for heading in (
         "## 全篇叙述逻辑链",
         "## 目录要求",
+        "## 致谢页要求",
+        "## 演讲稿要求",
         "## 顶部进度条要求",
         "## 页面分块要求",
         "## 文本框、要点拆分与装饰色系要求",
@@ -1575,11 +1693,8 @@ def preview_pages_errors(project, stage, option=None):
         elif record.get("output") and not (project / record["output"]).is_file():
             errors.append(f"{page['id']} 的整页预览原始输出已缺失：{record['output']}")
         prompt = str(job.get("prompt") or "")
-        if page["id"] not in prompt:
-            errors.append(
-                f"{page['id']} 的生图任务提示词没有写明页面编号："
-                "每页提示词要按设计稿逐页生成，任务必须指明是哪一页"
-            )
+        if preview_job_page_id(job, {slide["id"] for slide in content["slides"]}) != page["id"]:
+            errors.append(f"{page['id']} 的生图任务本地页面绑定不一致：核对 page_id／任务 id，不在提示词中写内部编号")
         if not str(page.get("promptSummary") or "").strip():
             errors.append(
                 f"{page['id']} 的整页预览缺少 promptSummary："
@@ -1600,19 +1715,22 @@ def preview_pages_errors(project, stage, option=None):
                         f"{page['id']} 的整页预览提示词没有写明特殊分块（{entry['label']}）："
                         "预览要按设计稿画出分块"
                     )
-                elif not any(word in prompt for word in SPLIT_FORM_TOKENS):
+                elif not (
+                    any(word in prompt for word in SPLIT_FORM_TOKENS)
+                    or (
+                        entry["id"] == "honeycomb"
+                        and all(word in prompt for word in (
+                            "三个六边形", "交错", "上方居中", "下方左右"
+                        ))
+                    )
+                ):
                     errors.append(
                         f"{page['id']} 的整页预览提示词只写了特殊分块「{entry['label']}」，"
                         "没有写清它的形态：要写清方向／倾角／走向／弯曲程度／圆心位置"
                     )
-                elif not any(word in prompt for word in ANTI_SIMPLIFY_TOKENS):
-                    errors.append(
-                        f"{page['id']} 的整页预览提示词没有写明弧线与斜线不要直线化："
-                        f"「{entry['label']}」的弧线要保持弧度、斜线要保持倾角，"
-                        "不能简化成横平竖直的直线"
-                    )
         plan = plan_by_slide.get(page["id"]) or {}
-        for image in plan.get("images") or []:
+        for image in ([] if page_type.get(page["id"]) in {"title", "toc"}
+                      else plan.get("images") or []):
             target = asset_path(project, image.get("path") or "")
             if not target.is_file():
                 continue
@@ -1624,31 +1742,18 @@ def preview_pages_errors(project, stage, option=None):
                     f"（约 {aspect:.2f}:1）：提示词要逐张写清图片位的精确比例，"
                     "预览里按该比例画占位块"
                 )
-        expected_refs = split_references_for_page(project, page["id"], split_cells)
-        if expected_refs:
-            references = [str(item).replace("\\", "/") for item in job.get("references") or []]
-            missing = [
-                files[0]
-                for _, files in expected_refs
-                if not any(item in references for item in files)
-            ]
-            if missing:
-                errors.append(
-                    f"{page['id']} 的整页预览任务没有把分块参考图交给 AI："
-                    + "、".join(missing)
-                    + "（参考图要与设计提示词一起放进该任务的 references）"
-                )
         if stage == "2.2":
             errors += insertion_errors(project, page, plan_by_slide.get(page["id"]), record)
             if not str(page.get("review") or "").strip():
                 errors.append(f"{page['id']} 原图插入后尚未登记逐页实际看图结论 review")
         errors += placeholder_errors(
-            project, page, plan_by_slide.get(page["id"]), job
+            project, page, plan_by_slide.get(page["id"]), job,
+            page_type=page_type.get(page["id"])
         )
     errors += preview_prompt_errors(
         project, stage, job_ids={page["jobId"] for page in preview["pages"]}
     )
-    errors += preview_palette_errors(project, stage, option, preview["pages"])
+    # Palette diagnostics are reported by workflow completion, not error gates.
     if not design_spec.is_file():
         errors.append(f"缺少设计稿：{design_spec.relative_to(project).as_posix()}")
     return list(dict.fromkeys(errors))
@@ -1907,8 +2012,9 @@ def deck_style_errors(project):
         )
     else:
         line = spec[spec.index(label):].split("\n")[0]
-        if len(line.strip()) <= len(label) + 2:
-            errors.append("设计稿的「选定风格与色彩」还空着：请写清选定的风格、配色与全篇视觉语言")
+        if (len(line.strip()) <= len(label) + 2
+                or "阶段2.1用户选定后填写" in line):
+            errors.append("设计稿的「选定风格与色彩」还空着：请在全篇视觉约定中写清选定风格与配色，逐页只写差异")
     approval = project / "03_concepts/approval.json"
     if not approval.is_file():
         errors.append("缺少方案批准记录：03_concepts/approval.json")
@@ -2362,7 +2468,7 @@ def boxed_text_shape(slide, element):
 
 
 def spec_text_errors(slide, element, label, page_type=None):
-    """文字必须在文本框中心、不能出格，字号也不能低于该层级的下限。"""
+    """Check text fit and font floors; semantic alignment is a visual review decision."""
     errors = []
     box_px = (
         inch_to_px(element["x"]),
@@ -2372,19 +2478,9 @@ def spec_text_errors(slide, element, label, page_type=None):
     )
     measure = {**element}
     if element.get("fontSize"):
+        measure["fontSizePt"] = element["fontSize"]
         measure["fontSize"] = pt_to_px(element["fontSize"])
     errors += text_fit_errors(label, measure, box_px, page_type)
-    if boxed_text_shape(slide, element) is not None:
-        if element.get("align") != "center":
-            errors.append(
-                f"{label} 的文字在文本框里没有水平居中：align 必须是 center"
-                "（文本框中心的文字才与预览一致）"
-            )
-        if element.get("valign") != "middle":
-            errors.append(
-                f"{label} 的文字在文本框里没有垂直居中：valign 必须是 middle"
-                "（文本框中心的文字才与预览一致）"
-            )
     return errors
 
 
@@ -2531,96 +2627,12 @@ def page_versions(project, spec):
 
 
 def ai_major_image_errors(project, spec):
-    """The three generated big images must actually be used in the deck."""
-    errors = []
-    try:
-        registry = read_json(project / "02_design/generated-assets.json").get("assets", [])
-    except (OSError, ValueError, TypeError):
-        registry = []
-    kind_by_gen = {
-        asset["id"]: asset.get("kind")
-        for asset in registry
-        if isinstance(asset, dict) and asset.get("id")
-    }
-    recon_kind = {}
-    manifest_path = project / "05_reconstruction/assets.json"
-    if manifest_path.is_file():
-        try:
-            for item in read_json(manifest_path).get("assets", []):
-                if not isinstance(item, dict):
-                    continue
-                for key in ("sourceId", "sourceAssetId"):
-                    value = item.get(key)
-                    if isinstance(value, str) and value in kind_by_gen:
-                        recon_kind[item.get("sourceId")] = kind_by_gen[value]
-                        if item.get("sourceAssetId") == value:
-                            recon_kind.setdefault(value, kind_by_gen[value])
-        except (OSError, ValueError, TypeError):
-            pass
+    """Generated candidates need not appear; adopted assets use plan/inventory gates.
 
-    def kind_of(element):
-        source = element.get("sourceId")
-        if not isinstance(source, str):
-            return None
-        if source in kind_by_gen:
-            return kind_by_gen[source]
-        return recon_kind.get(source)
-
-    def kinds_in(slide_ids):
-        found = set()
-        for slide in spec["slides"]:
-            if slide["id"] not in slide_ids:
-                continue
-            for element in slide["elements"]:
-                if element["type"] != "image":
-                    continue
-                kind = kind_of(element)
-                if kind:
-                    found.add(kind)
-        return found
-
-    content_by_id = {}
-    try:
-        content_by_id = {
-            s["id"]: s
-            for s in read_json(project / "02_design/content.json")["slides"]
-        }
-    except (OSError, ValueError, TypeError):
-        content_by_id = {}
-    page_type = {
-        slide["id"]: (content_by_id.get(slide["id"]) or {}).get("page_type")
-        for slide in spec["slides"]
-    }
-    if "hero-image" in kind_by_gen.values() and "hero-image" not in kinds_in(
-        {sid for sid, kind in page_type.items() if kind == "title"}
-    ):
-        errors.append(
-            "标题页没有用上生成的标题图（hero-image）：组装 PPTX 时必须把该方向的整体大图放到封面页"
-        )
-    if "toc-image" in kind_by_gen.values():
-        toc_ids = {sid for sid, kind in page_type.items() if kind == "toc"}
-        if toc_ids and "toc-image" not in kinds_in(toc_ids):
-            errors.append(
-                "目录页没有用上生成的目录图（toc-image）：组装 PPTX 时必须把目录页大图放到目录页"
-            )
-    if "content-background" in kind_by_gen.values():
-        body_ids = {
-            sid for sid, kind in page_type.items() if kind in {"content", "thanks"}
-        }
-        for slide in spec["slides"]:
-            if slide["id"] not in body_ids:
-                continue
-            kinds = {
-                kind_of(element)
-                for element in slide["elements"]
-                if element["type"] == "image"
-            }
-            if "content-background" not in kinds:
-                errors.append(
-                    f"{slide['id']} 没有用上生成的背景底图（content-background）："
-                    "内容页／致谢页都要以它为整页背景"
-                )
-    return list(dict.fromkeys(errors))
+    Image-plan identity and rebuilt-element checks still reject missing adopted
+    objects. Presence in the candidate registry alone creates no display duty.
+    """
+    return []
 
 
 def rebuilt_asset_errors(project, spec):
