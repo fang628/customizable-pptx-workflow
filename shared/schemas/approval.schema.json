@@ -1,13 +1,112 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "type": "object", "required": ["kind", "confirmed_at", "evidence", "files"],
+  "type": "object",
+  "required": [
+    "kind",
+    "confirmed_at",
+    "evidence",
+    "files"
+  ],
   "properties": {
-    "kind": { "enum": ["requirements", "concept", "preview"] },
-    "confirmed_at": { "type": "string", "minLength": 1 },
-    "evidence": { "type": "string", "minLength": 1 },
-    "option": { "enum": ["a", "b", "c"] },
-    "files": { "type": "object", "minProperties": 1, "additionalProperties": { "type": "string", "pattern": "^[a-f0-9]{64}$" } }
+    "kind": {
+      "enum": [
+        "requirements",
+        "concept",
+        "preview"
+      ]
+    },
+    "confirmed_at": {
+      "type": "string",
+      "minLength": 1
+    },
+    "evidence": {
+      "type": "string",
+      "minLength": 1
+    },
+    "option": {
+      "enum": [
+        "a",
+        "b",
+        "c"
+      ]
+    },
+    "files": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^[a-f0-9]{64}$"
+      }
+    },
+    "scope": {
+      "type": "object",
+      "required": [
+        "version",
+        "shared",
+        "pages"
+      ],
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "shared": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "pages": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "page_confirmations": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "sha256",
+          "evidence",
+          "confirmed_at"
+        ],
+        "properties": {
+          "sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "evidence": {
+            "type": "string",
+            "minLength": 1
+          },
+          "confirmed_at": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
   },
-  "if": { "properties": { "kind": { "const": "concept" } } },
-  "then": { "required": ["option"] }
+  "if": {
+    "properties": {
+      "kind": {
+        "const": "concept"
+      }
+    }
+  },
+  "then": {
+    "required": [
+      "option"
+    ]
+  },
+  "dependentRequired": {
+    "scope": [
+      "page_confirmations"
+    ],
+    "page_confirmations": [
+      "scope"
+    ]
+  }
 }

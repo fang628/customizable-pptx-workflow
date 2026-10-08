@@ -1978,6 +1978,9 @@ def approval_errors(project, kind):
             required.update(path.relative_to(project).as_posix() for path in previews)
         if not required.issubset(approval["files"]):
             errors.append(f"{kind} 批准记录没有绑定全部必需文件")
+        if kind in {"concept", "preview"} and approval.get("scope"):
+            from dependency_scope import scoped_approval_errors
+            return errors + scoped_approval_errors(project, approval)
         return errors + check_hashes(project, approval["files"])
     except (OSError, ValueError, TypeError, KeyError) as exc:
         return [f"缺少或无效的 {kind} 批准记录：{exc}"]
@@ -2134,6 +2137,28 @@ def content_plan_source_index_errors(text, materials):
         errors.append(f"正文文案 {identifier} 缺少原文索引")
     for identifier in sorted(indexed - referenced):
         errors.append(f"原文索引 {identifier} 未在候选文案正文中引用")
+    return list(dict.fromkeys(errors))
+
+
+def content_plan_ready_errors(project):
+    """Before any 1.2 image call: copy/source index and reserved image IDs exist."""
+    plan = project / "02_design/content-plan.md"
+    if not plan.is_file():
+        return ["先生成 content-plan.md（候选文案、来源索引和预留图片编号），再生成底图"]
+    text = plan.read_text(encoding="utf-8-sig")
+    errors = content_plan_source_index_errors(text, read_json(project / "01_inventory/materials.json")["materials"])
+    if "##" not in text:
+        errors.append("content-plan.md 须先按叙述顺序分级组织内容")
+    intent = read_json(project / "02_design/image-intent-plan.json")
+    for slide in intent.get("slides", []):
+        for image in slide.get("images", []):
+            if image["id"] not in text:
+                errors.append(f"生图前内容清单须预留计划图片 {image['id']}")
+    jobs_path = project / "02_design/generation-jobs.json"
+    if jobs_path.is_file():
+        for job in read_json(jobs_path).get("jobs", []):
+            if job["asset_id"] not in text:
+                errors.append(f"生图前内容清单须预留候选图片 {job['asset_id']}")
     return list(dict.fromkeys(errors))
 
 
@@ -2334,6 +2359,11 @@ def gate_errors(
         current = collect(project, stage)
         if current != record.get("files"):
             errors.append(f"阶段 {stage} 产物已变化或未绑定版本，需要重新完成")
+        if record.get("dependencies"):
+            from dependency_scope import snapshot, difference
+            change = difference(record["dependencies"], snapshot(project, stage))
+            if change["global"] or change["pages"]:
+                errors.append(f"阶段 {stage} 依赖已变化，需要重新验收：" + ("全篇" if change["global"] else "、".join(change["pages"])))
         if verify_previews:
             errors += stage_preview_errors(project, stage)
     if STAGES.index(through) >= STAGES.index("1.1"):

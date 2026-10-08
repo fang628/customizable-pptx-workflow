@@ -12,6 +12,7 @@ from PIL import Image, ImageDraw, ImageOps, ImageStat
 sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "shared/scripts"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from workflow_lib import approval_errors, check_hashes, digest, now, read_json, write_json
+from dependency_scope import review_dependencies
 
 
 def _archive(paths, output):
@@ -83,6 +84,7 @@ def prepare(project):
     review_pages = []
     manifest_pages = []
     reused_count = 0
+    dependencies = review_dependencies(project)
     for page in render["pages"]:
         page_id = page["id"]
         preview_path = project / "04_full-preview/slides" / f"{page_id}.png"
@@ -104,7 +106,8 @@ def prepare(project):
         thumbs.append(ImageOps.contain(actual, (400, 240)))
 
         previous = previous_pages.get(page_id)
-        reused = bool(previous and previous.get("render_sha256") == page["sha256"])
+        reused = bool(previous and previous.get("render_sha256") == page["sha256"]
+                      and previous.get("dependency_sha256") == dependencies.get(page_id))
         if reused:
             reused_count += 1
             review = _normalized_review(previous, page["sha256"], True)
@@ -123,6 +126,7 @@ def prepare(project):
                 "notes": "待逐页审阅",
                 "deviations": [],
             }
+        review["dependency_sha256"] = dependencies[page_id]
         review_pages.append(review)
         manifest_pages.append({
             "id": page_id,

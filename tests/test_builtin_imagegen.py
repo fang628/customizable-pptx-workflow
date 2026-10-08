@@ -42,6 +42,11 @@ class BuiltinImagegenTests(unittest.TestCase):
                     "intended_use": "测试背景", "factual_boundary": "非事实抽象图"}
         self.plan = {"jobs": [self.job]}
         write_json(self.project / "02_design/generation-jobs.json", self.plan)
+        (self.project / "02_design/content-plan.md").write_text(
+            "# 内容清单\n## 候选内容\n- 文案 CP-001：测试说明\n- 候选图片 GEN-001：测试背景（拟生成）\n"
+            "## 文案与材料原文索引\n| 文案编号 | PPT候选文案 | 材料ID | 原文定位 | 原文摘录 | 整理方式 |\n"
+            "|---|---|---|---|---|---|\n| CP-001 | 测试说明 | 结构文案 | 不适用 | 不适用 | 结构文案 |\n",
+            encoding="utf-8")
         self.receipt = {"tool": "image_gen", "job_id": self.job["id"],
                         "tool_call_id": "OFFLINE-TEST-FIXTURE-ONLY", "source_file": str(self.source), "tool_result_id": self.source.name,
                         "raw_sha256": digest(self.source), "reference_sha256": {},

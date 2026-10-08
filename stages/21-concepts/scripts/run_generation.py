@@ -21,10 +21,12 @@ from workflow_lib import (
     design_errors,
     digest,
     gate_errors,
+    content_plan_ready_errors,
     generation_jobs_errors,
     generation_paths,
     now,
     preview_prompt_errors,
+    preview_job_page_id,
     project_lock,
     read_json,
     write_json,
@@ -105,6 +107,7 @@ def _record_is_traceable(record):
 
 
 def _version_key(project, stage, job, reference_hashes, config, script):
+    from dependency_scope import snapshot
     version = {
         "stage": stage["id"],
         "provider": config["provider"],
@@ -113,12 +116,15 @@ def _version_key(project, stage, job, reference_hashes, config, script):
         "references": reference_hashes,
         "adapter_script": digest(script),
         "preview_pipeline": digest(Path(__file__).resolve().parents[3] / "shared/scripts/preview_images.py"),
-        "content": digest(project / "02_design/content.json"),
-        "design": digest(project / "02_design/design-spec.md"),
-        "image_intent": digest(project / "02_design/image-intent-plan.json"),
     }
-    if stage["id"] == "2.2":
-        version["approval"] = digest(project / "03_concepts/approval.json")
+    if stage["id"] in {"2.1", "2.2"}:
+        page_ids = [s["id"] for s in read_json(project / "02_design/content.json")["slides"]]
+        page_id = preview_job_page_id(job, page_ids)
+        if not page_id:
+            raise ValueError(f"{job['id']} 缺少唯一的本地页面绑定")
+        version["page_dependencies"] = snapshot(project, stage["id"], [page_id], include_outputs=False)
+        if stage["id"] == "2.2":
+            version["direction"] = read_json(project / "03_concepts/approval.json").get("option")
     return fingerprint(version)
 
 
@@ -333,6 +339,8 @@ def execute(project, stage_name, script_override, python, run, timeout, attempts
     )
     if stage["id"] == "2.2":
         errors += design_errors(project)
+    if stage["id"] == "1.2":
+        errors += content_plan_ready_errors(project)
     if errors:
         raise ValueError("\n".join(errors))
     config = _load_config(project)

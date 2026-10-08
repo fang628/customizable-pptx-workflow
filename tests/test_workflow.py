@@ -58,6 +58,15 @@ from preview_originals import compose, insertion_errors
 from validate_project import inspect_pptx, validate
 NODE = "node"
 ENV = {**os.environ, "PYTHONUTF8": "1"}
+def workflow_doc(relative):
+    path = ROOT / relative
+    parts = [path.read_text(encoding="utf-8")]
+    if path.name == "SKILL.md":
+        parts += [p.read_text(encoding="utf-8") for p in sorted((path.parent / "steps").glob("*.md"))]
+        if path.parent == ROOT:
+            parts += [(ROOT / p).read_text(encoding="utf-8") for p in ("shared/orchestration-rules.md", "shared/stage-contracts.md")]
+    return "\n".join(parts)
+
 def visual_box(slide, element_id):
     """Normalized box -> pixel corners, for tests that inspect the preview."""
     element = next(item for item in slide["elements"] if item["id"] == element_id)
@@ -444,6 +453,13 @@ class WorkflowTests(unittest.TestCase):
                     "factual_boundary": boundary,
                 })
                 kind_by_job[identifier] = kind
+        # Content plan must precede even offline image generation.
+        preplan = ["# 内容清单", "## 候选内容", "- 文案 CP-001：测试用结构说明"]
+        preplan += [f"- 候选图片 {j['asset_id']}：{j['intended_use']}（拟生成）" for j in jobs]
+        preplan += [f"- 计划图片 {i['id']}：{i['description']}" for s in intent["slides"] for i in s["images"]]
+        preplan += ["## 文案与材料原文索引", "| 文案编号 | PPT候选文案 | 材料ID | 原文定位 | 原文摘录 | 整理方式 |",
+                    "|---|---|---|---|---|---|", "| CP-001 | 测试用结构说明 | 结构文案 | 不适用 | 不适用 | 结构文案 |"]
+        (self.project / "02_design/content-plan.md").write_text("\n".join(preplan)+"\n", encoding="utf-8")
         self.run_generation(
             "02_design", "02_design/generation-jobs.json", jobs, "content"
         )
@@ -1185,15 +1201,15 @@ class WorkflowTests(unittest.TestCase):
         self.assertIn("## 待补充材料", spec)
         self.assertIn("每页必须有内容相关配图", spec)
 
-        scope = (ROOT / "stages/12-content/SKILL.md").read_text(encoding="utf-8")
+        scope = workflow_doc("stages/12-content/SKILL.md")
         self.assertIn("每页必须有图", scope)
         self.assertIn("BioRender", scope)
         self.assertIn("保留设计稿规划", scope)
 
-        design = (ROOT / "stages/13-design/SKILL.md").read_text(encoding="utf-8")
+        design = workflow_doc("stages/13-design/SKILL.md")
         self.assertIn("每页必须有图", design)
 
-        skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
+        skill = workflow_doc("SKILL.md")
         self.assertIn("每一页都必须有图", skill)
         self.assertIn("generation-prompts.md", skill)
 
@@ -1876,6 +1892,8 @@ class WorkflowTests(unittest.TestCase):
 
     def test_provider_square_output_is_kept_as_independent_asset(self):
         self.approved_fixture(through="1.3")
+        plan = self.project / "02_design/content-plan.md"
+        plan.write_text(plan.read_text(encoding="utf-8") + "\n- 候选图片 GEN-501：拟生成测试独立素材\n", encoding="utf-8")
         write_json(
             self.project / "02_design/generation-jobs.json",
             {
@@ -2453,18 +2471,18 @@ class WorkflowTests(unittest.TestCase):
         inventory = self.project / "05_reconstruction/element-inventory.md"
         self.assertTrue(inventory.is_file())
 
-        audit = (ROOT / "stages/31-element-audit/SKILL.md").read_text(encoding="utf-8")
+        audit = workflow_doc("stages/31-element-audit/SKILL.md")
         self.assertIn("element-inventory.md", audit)
         self.assertIn("已本地插入登记原图", audit)
         self.assertIn("\u8ba1\u5212\u7684\u5206\u79bb\u65b9\u5f0f", audit)
 
-        rebuild = (ROOT / "stages/32-asset-rebuild/SKILL.md").read_text(encoding="utf-8")
+        rebuild = workflow_doc("stages/32-asset-rebuild/SKILL.md")
         self.assertIn("element-inventory.md", rebuild)
         self.assertIn("\u9010\u4e2a\u8fd8\u539f", rebuild)
         self.assertIn("AI \u62a0\u56fe", rebuild)
         self.assertIn("\u539f\u751f\u5143\u7d20\u7ec4\u88c5", rebuild)
 
-        build = (ROOT / "stages/33-build/SKILL.md").read_text(encoding="utf-8")
+        build = workflow_doc("stages/33-build/SKILL.md")
         self.assertIn("背景按已批准设计", build)
         contract = (ROOT / "shared/artifact-contract.md").read_text(encoding="utf-8")
         self.assertIn("element-inventory.md", contract)
@@ -2563,21 +2581,25 @@ class WorkflowTests(unittest.TestCase):
     def test_stage_spec_library_is_read_per_step(self):
         operations = (ROOT / "shared/operations.md").read_text(encoding="utf-8")
         self.assertIn("规范库索引（按步骤）", operations)
-        self.assertIn("每开始一个步骤，先读一遍该步骤", operations)
+        selected = self.run_python("shared/scripts/read_context.py", ROOT / "shared/operations.md",
+                                   "--section", "规范库索引（按步骤）").stdout
+        self.assertNotIn("## 环境与版本", selected)
+        oversized = self.run_python("shared/scripts/read_context.py", ROOT / "shared/operations.md", success=False)
+        self.assertIn("超过", oversized.stderr)
         for folder in (
             "00-init", "11-intake", "12-content", "13-design",
             "21-concepts", "22-full-preview", "31-element-audit", "32-asset-rebuild",
             "33-build", "40-speaker-script",
         ):
-            doc = (ROOT / f"stages/{folder}/SKILL.md").read_text(encoding="utf-8")
-            self.assertIn("开工前先读规范库", doc, folder)
+            doc = workflow_doc(f"stages/{folder}/SKILL.md")
+            self.assertIn("context-loading.md", doc, folder)
 
 
     def test_pixel_diff_check_is_removed(self):
         self.assertFalse((ROOT / "stages/33-build/scripts/visual_match.py").exists())
         self.assertFalse((ROOT / "shared/schemas/visual-match.schema.json").exists())
         for relative in ("SKILL.md", "stages/33-build/SKILL.md", "shared/artifact-contract.md"):
-            doc = (ROOT / relative).read_text(encoding="utf-8")
+            doc = workflow_doc(relative)
             self.assertNotIn("visual_match.py", doc, relative)
             self.assertNotIn("visual-match.json", doc, relative)
         operations = (ROOT / "shared/operations.md").read_text(encoding="utf-8")
@@ -2722,7 +2744,7 @@ class WorkflowTests(unittest.TestCase):
             "shared/operations.md",
             "SKILL.md",
         ):
-            document = (ROOT / rel).read_text(encoding="utf-8")
+            document = workflow_doc(rel)
             self.assertIn("16:9", document, rel)
 
     def test_logic_arrows_and_fixed_placeholder_ratio_reach_the_prompt(self):
@@ -2841,7 +2863,7 @@ class WorkflowTests(unittest.TestCase):
             "shared/operations.md",
             "SKILL.md",
         ):
-            document = (ROOT / rel).read_text(encoding="utf-8")
+            document = workflow_doc(rel)
             self.assertIn("gen-prompt-scope.md", document, rel)
         scope = (ROOT / "stages/13-design/references/gen-prompt-scope.md").read_text(encoding="utf-8")
         self.assertIn("Markdown 嵌套列表", scope)
@@ -3027,10 +3049,10 @@ class WorkflowTests(unittest.TestCase):
 
         guide = (ROOT / "stages/13-design/references/style-guide.md").read_text(encoding="utf-8")
         self.assertIn("AI 素材与构图选择", guide)
-        candidates = (ROOT / "stages/12-content/SKILL.md").read_text(encoding="utf-8")
+        candidates = workflow_doc("stages/12-content/SKILL.md")
         for item in ("content-background", "hero-image", "toc-image"):
             self.assertIn(item, candidates)
-        skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
+        skill = workflow_doc("SKILL.md")
         self.assertIn("候选", skill)
         self.assertNotIn("《封面与目录页大图要求》", skill)
 
@@ -3172,7 +3194,7 @@ class WorkflowTests(unittest.TestCase):
         self.assertIn("- **分块的分标题**", template)
         self.assertIn("作为独立文字对象", template)
         self.assertIn("section角色", template)
-        design = (ROOT / "stages/13-design/SKILL.md").read_text(encoding="utf-8")
+        design = workflow_doc("stages/13-design/SKILL.md")
         self.assertIn("不再要求在分块同一行重复文案", design)
 
         prompt_rules = (ROOT / "stages/13-design/references/gen-prompt-scope.md").read_text(encoding="utf-8")

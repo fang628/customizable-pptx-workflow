@@ -9,7 +9,7 @@ description: "分类整理混合材料，澄清影响可编辑 PPTX 内容与设
 
 **停机点：1.1（需求与材料确认）。** 需求与材料清单整理完后运行 `workflow.py <project> await 1.1 --notes "..."`，把确认清单交给用户；等用户确认后再 `approve requirements` 并 `complete 1.1`。除此之外不得中断。
 
-**开工前先读规范库**：先读[执行与验收约定](../../shared/operations.md)的《规范库索引（按步骤）》里「1.1 需求与材料」一行与它列出的章节，再读[共享工件约定](../../shared/artifact-contract.md)的对应小节；每进入一个新步骤都重读该步骤的章节，不要凭记忆。
+**开工前按需读取**：先读当前子步骤及[分步读取约定](../../shared/context-loading.md)，按执行约定索引只取本步骤所需章节。
 
 阅读[共享工件约定](../../shared/artifact-contract.md)，使用本阶段模板填写 `00_intake/project-brief.md` 和 `01_inventory/material-inventory.md`。
 

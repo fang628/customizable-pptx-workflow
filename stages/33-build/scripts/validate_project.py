@@ -274,12 +274,16 @@ def _validate_qa_review(project, render, expected_ids, errors):
 
     pages = _manifest_pages(review, expected_ids, "人工审阅", errors)
     render_pages = _manifest_pages(render, expected_ids, "渲染", errors)
+    from dependency_scope import review_dependencies
+    dependencies = review_dependencies(project)
     for page_id in expected_ids:
         page = pages.get(page_id)
         if not page:
             continue
         if page.get("render_sha256") != render_pages.get(page_id, {}).get("sha256"):
             errors.append(f"逐页人工审阅不属于当前渲染版本：{page_id}")
+        if page.get("dependency_sha256") and page["dependency_sha256"] != dependencies.get(page_id):
+            errors.append(f"逐页人工审阅的内容、素材或构建依赖已失效：{page_id}")
         if page.get("review_mode") not in {"manual", "assisted"} or page.get("human_signed") is not True:
             errors.append(f"逐页人工审阅尚未由人员签署：{page_id}")
         for check in REVIEW_CHECKS:

@@ -11,6 +11,7 @@ from workflow_lib import (
     design_errors, digest, gate_errors, generation_evidence_errors,
     generation_jobs_errors, generation_ledger_errors, generation_prompts_errors,
     content_plan_errors,
+    content_plan_ready_errors,
     deck_style_errors,
     material_errors, now, page_versions, preview_pages_errors,
     read_json, referenced_generation_files, speaker_script_errors,
@@ -18,6 +19,7 @@ from workflow_lib import (
     project_lock, write_json, preview_palette_warnings,
 )
 from preview_images import stage_preview_errors
+from dependency_scope import snapshot, difference
 
 
 def portable(project, path):
@@ -29,6 +31,19 @@ def complete(project, stage):
     if stage == "0":
         return
     index = STAGES.index(stage)
+    state = read_json(project / "workflow-state.json")
+    previous = state["stages"].get(stage, {})
+    skip_speaker = stage == "4" and not read_json(project / "02_design/content.json").get("include_speaker_script")
+    current_files = None
+    if previous.get("status") == "complete":
+        try:
+            current_files = {} if skip_speaker else collect(project, stage)
+        except ValueError:
+            pass  # Let the normal stage validators explain missing artifacts.
+    unchanged = False
+    if previous.get("status") == "complete" and previous.get("files") == current_files:
+        change = difference(previous.get("dependencies"), snapshot(project, stage))
+        unchanged = not change["global"] and not change["pages"]
     errors = gate_errors(project, STAGES[index - 1]) if index > STAGES.index("1.1") else []
     if stage == "1.1":
         errors += (
@@ -36,7 +51,8 @@ def complete(project, stage):
             + ai_image_config_errors(project)
             + approval_errors(project, "requirements")
         )
-    errors += stop_point_errors(project, stage)
+    if not unchanged:
+        errors += stop_point_errors(project, stage)
     if stage == "1.2":
         errors += content_plan_errors(project)
         errors += generation_jobs_errors(project, "1.2")
@@ -67,6 +83,8 @@ def complete(project, stage):
         # 用户已确认不需要演讲稿：阶段 4 直接跳过并标记完成（交付在 3.3 结束）
     if errors:
         raise ValueError("\n".join(errors))
+    if unchanged:
+        return  # Still validate evidence/QA; do not mint a new approval or reset stages.
     if stage in {"2.1", "2.2"}:
         manifests = ([(option, project / f"03_concepts/option-{option}/preview.json")
                       for option in "abc"] if stage == "2.1" else
@@ -83,14 +101,27 @@ def complete(project, stage):
     skip_speaker = (stage == "4"
                     and not read_json(project / "02_design/content.json").get("include_speaker_script"))
     record = {"status": "complete", "updated_at": now(),
-              "files": {} if skip_speaker else collect(project, stage)}
+              "files": {} if skip_speaker else collect(project, stage),
+              "dependencies": snapshot(project, stage)}
     if skip_speaker:
         record["notes"] = "用户已确认不需要演讲稿：阶段 4 跳过，交付在 3.3 结束。"
     state["stages"][stage] = record
     if stage == "3.3":
         state["pages"] = page_versions(project, read_json(project / "06_build/deck-spec.json"))
     for downstream in STAGES[index + 1:]:
-        state["stages"][downstream] = {"status": "not_started", "updated_at": now(), "notes": f"上游阶段 {stage} 已更新，需要重新验收。"}
+        old = state["stages"].get(downstream, {})
+        if old.get("status") == "not_started" and not old.get("dependencies"):
+            continue
+        current = snapshot(project, downstream)
+        change = difference(old.get("dependencies"), current)
+        if not change["global"] and not change["pages"]:
+            # Retain the record and its hashes; never silently rebind changed outputs.
+            continue
+        state["stages"][downstream] = {
+            **old, "status": "in_progress", "updated_at": now(),
+            "pending_pages": change["pages"], "global_change": change["global"],
+            "notes": f"上游阶段 {stage} 已更新：{change['reason']}；未变化页面和素材可复用。",
+        }
     write_json(project / "workflow-state.json", state)
 
 
@@ -108,16 +139,29 @@ def main():
     approve.add_argument("kind", choices=["requirements", "concept", "preview"])
     approve.add_argument("--evidence", required=True, help="Actual user confirmation quote or message reference")
     approve.add_argument("--option", choices=list("abc"))
+    approve.add_argument("--pages", nargs="+", help="Only these changed preview pages received new user confirmation")
     done = commands.add_parser("complete")
     done.add_argument("stage", choices=STAGES[1:])
     wait = commands.add_parser("await")
     wait.add_argument("stage", choices=STAGES[1:])
     wait.add_argument("--notes", required=True)
     commands.add_parser("status")
+    commands.add_parser("check-content-plan", help="Validate copy, source index and reserved image IDs before generation")
+    checkpoint = commands.add_parser("checkpoint", help="Save an execution substep without approving or completing a stage")
+    checkpoint.add_argument("stage", choices=STAGES)
+    checkpoint.add_argument("--step", required=True)
+    impact = commands.add_parser("impact", help="Read-only report of affected pages and reusable stage records")
+    impact.add_argument("--stage", choices=STAGES[1:])
     commands.add_parser("stop-point", help="报告当前是否可以停在停机点")
     args = parser.parse_args()
     project = Path(args.project_dir).resolve()
-    if args.command == "status":
+    if args.command in {"status", "impact"}:
+        if args.command == "impact":
+            state = read_json(project / "workflow-state.json")
+            stages = [args.stage] if args.stage else STAGES[1:]
+            print(json.dumps({s: difference(state["stages"].get(s, {}).get("dependencies"), snapshot(project, s))
+                              for s in stages}, ensure_ascii=False, indent=2))
+            return
         _status(project)
         return
     if args.command == "stop-point":
@@ -133,7 +177,18 @@ def main():
 
 
 def _dispatch(project, args):
-    if args.command == "material":
+    if args.command == "check-content-plan":
+        errors = content_plan_ready_errors(project)
+        if errors:
+            raise ValueError("\n".join(errors))
+    elif args.command == "checkpoint":
+        if not args.step.strip():
+            raise ValueError("检查点必须记录实际执行的子步骤")
+        state = read_json(project / "workflow-state.json")
+        state["updated_at"] = now()
+        state["stages"][args.stage]["active_step"] = args.step
+        write_json(project / "workflow-state.json", state)
+    elif args.command == "material":
         path = Path(args.path)
         if not path.is_absolute():
             path = project / path
@@ -149,6 +204,8 @@ def _dispatch(project, args):
         files = ["00_intake/project-brief.md", "01_inventory/materials.json"]
         location = "00_intake/requirements-approval.json"
         record = {"kind": args.kind, "confirmed_at": now(), "evidence": args.evidence}
+        if args.pages and args.kind != "preview":
+            raise ValueError("--pages 仅用于完整预览的逐页重新批准；需求和风格选择仍整体确认")
         if args.kind == "concept":
             if not args.option:
                 raise ValueError("方案批准必须指定 --option")
@@ -196,6 +253,36 @@ def _dispatch(project, args):
             files += [p.relative_to(project).as_posix() for p in sorted(project.glob("04_full-preview/slides/*.png"))]
             location = "04_full-preview/approval.json"
         record["files"] = {name: digest(project / name) for name in sorted(set(files))}
+        if args.kind in {"concept", "preview"}:
+            stage = "2.1" if args.kind == "concept" else "2.2"
+            scope = snapshot(project, stage, option=record.get("option"))
+            confirmations = {}
+            selected = set(args.pages or scope["pages"])
+            if selected - set(scope["pages"]):
+                raise ValueError("批准页面不存在：" + "、".join(sorted(selected - set(scope["pages"]))))
+            if args.pages:
+                old_path = project / location
+                old = read_json(old_path) if old_path.is_file() else {}
+                change = difference(old.get("scope"), scope)
+                if change["global"]:
+                    raise ValueError("全篇依赖改变或旧批准没有页面快照，必须整体重新确认")
+                if set(change["pages"]) - selected:
+                    raise ValueError("仍有未确认的变化页面：" + "、".join(sorted(set(change["pages"]) - selected)))
+                confirmations = dict(old.get("page_confirmations", {}))
+                for identifier, value in scope["pages"].items():
+                    if identifier not in selected and confirmations.get(identifier, {}).get("sha256") != value:
+                        raise ValueError(f"{identifier} 缺少可复用的页面批准")
+            for identifier in selected:
+                confirmations[identifier] = {"sha256": scope["pages"][identifier],
+                                             "evidence": args.evidence, "confirmed_at": record["confirmed_at"]}
+            record["scope"] = scope
+            record["page_confirmations"] = {p: confirmations[p] for p in scope["pages"]}
+            # Keep previous approvals as historical evidence; do not rewrite their quotes.
+            old_path = project / location
+            if old_path.is_file():
+                archive = old_path.parent / "approval-history" / (now().replace(":", "-") + ".json")
+                archive.parent.mkdir(parents=True, exist_ok=True)
+                archive.write_bytes(old_path.read_bytes())
         write_json(project / location, record)
     elif args.command == "complete":
         complete(project, args.stage)
@@ -213,10 +300,10 @@ def _dispatch(project, args):
         state = read_json(project / "workflow-state.json")
         state["updated_at"] = now()
         state["stages"][args.stage] = {
+            **state["stages"].get(args.stage, {}),
             "status": "awaiting_user",
             "updated_at": now(),
             "notes": args.notes,
-            "files": {},
         }
         write_json(project / "workflow-state.json", state)
     else:
@@ -225,19 +312,27 @@ def _dispatch(project, args):
 
 def _status(project):
     state = read_json(project / "workflow-state.json")
-    stale = False
+    legacy_stale = False
     for stage in STAGES[1:]:
         record = state["stages"].get(stage, {})
+        stale = False
         if record.get("status") == "complete":
             if stage == "4" and not read_json(project / "02_design/content.json").get("include_speaker_script"):
                 continue
             try:
-                stale = stale or record.get("files") != collect(project, stage)
+                stale = record.get("files") != collect(project, stage)
             except ValueError:
                 stale = True
             if stage == "1.1":
                 stale = stale or bool(material_errors(project) + ai_image_config_errors(project))
-        print(f"{stage}: {'stale' if stale else record.get('status', 'not_started')}")
+            if record.get("dependencies"):
+                change = difference(record["dependencies"], snapshot(project, stage))
+                stale = stale or change["global"] or bool(change["pages"])
+            else:
+                legacy_stale = legacy_stale or stale
+                stale = stale or legacy_stale
+        suffix = "；待处理页面：" + "、".join(record["pending_pages"]) if record.get("pending_pages") else ""
+        print(f"{stage}: {'stale' if stale else record.get('status', 'not_started')}{suffix}")
     info = stop_point_status(project)
     marker = "可以结束" if info["canStop"] else "必须继续"
     print(f"停机点：{marker}（{info['reason']}）")
