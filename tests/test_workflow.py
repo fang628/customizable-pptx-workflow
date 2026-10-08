@@ -464,10 +464,14 @@ class WorkflowTests(unittest.TestCase):
             })
             lines.append(f"- 候选图片 {job['asset_id']}：{job['intended_use']}")
         write_json(self.project / "02_design/generated-assets.json", registry)
-        lines += ["", "## 正文", "### 结论", "（每页的结论与正文写在这里）"]
+        lines += ["", "## 正文", "### 结论", "- 文案 CP-001：测试用结构说明"]
         for slide in intent["slides"]:
             for image in slide["images"]:
                 lines.append(f"- 计划图片 {image['id']}：{image['description']}")
+        lines += ["", "## 文案与材料原文索引",
+                  "| 文案编号 | PPT候选文案 | 材料ID | 原文定位 | 原文摘录 | 整理方式 |",
+                  "|---|---|---|---|---|---|",
+                  "| CP-001 | 测试用结构说明 | 结构文案 | 不适用 | 不适用 | 结构文案 |"]
         (self.project / "02_design/content-plan.md").write_text(
             "\n".join(lines) + "\n", encoding="utf-8"
         )
@@ -2091,6 +2095,37 @@ class WorkflowTests(unittest.TestCase):
         self.assertIn("缺少内容清单", rejected.stderr)
 
         self.generate_content_assets()
+        self.workflow("complete", "1.2")
+
+    def test_content_source_index_checks_mapping_and_materials(self):
+        from workflow_lib import content_plan_source_index_errors
+        plan = ("# 内容清单\n## 结果\n- 文案 CP-001：处理后指标提高。\n"
+                "## 文案与材料原文索引\n"
+                "| 文案编号 | PPT候选文案 | 材料ID | 原文定位 | 原文摘录 | 整理方式 |\n"
+                "|---|---|---|---|---|---|\n"
+                "| CP-001 | 处理后指标提高。 | REPORT-001 | 第3页，表2 | 处理后指标提高10%。 | 精简 |\n")
+        materials = [{"id": "REPORT-001"}]
+        self.assertEqual(content_plan_source_index_errors(plan, materials), [])
+        missing_section = plan.split("## 文案与材料原文索引")[0]
+        self.assertTrue(content_plan_source_index_errors(missing_section, materials))
+        self.assertTrue(content_plan_source_index_errors(plan.replace("第3页，表2", ""), materials))
+        self.assertTrue(content_plan_source_index_errors(plan.replace("REPORT-001", "REPORT-999"), materials))
+        self.assertTrue(content_plan_source_index_errors(plan.replace("- 文案 CP-001", "- 文案 CP-002"), materials))
+        multiple_sources = plan + "| CP-001 | 处理后指标提高。 | 用户说明 | 需求记录第二条 | 指标呈上升趋势。 | 归纳 |\n"
+        self.assertEqual(content_plan_source_index_errors(multiple_sources, materials), [])
+        structural = plan.replace("REPORT-001", "结构文案").replace("第3页，表2", "不适用")
+        structural = structural.replace("处理后指标提高10%。", "不适用").replace("| 精简 |", "| 结构文案 |")
+        self.assertEqual(content_plan_source_index_errors(structural, materials), [])
+
+    def test_content_stage_rejects_plan_without_source_index(self):
+        self.approved_fixture(through="1.1")
+        self.generate_content_assets()
+        path = self.project / "02_design/content-plan.md"
+        complete_plan = path.read_text(encoding="utf-8")
+        path.write_text(complete_plan.split("## 文案与材料原文索引")[0], encoding="utf-8")
+        rejected = self.workflow("complete", "1.2", success=False)
+        self.assertIn("文案与材料原文索引", rejected.stderr)
+        path.write_text(complete_plan, encoding="utf-8")
         self.workflow("complete", "1.2")
 
     def test_candidates_must_cover_every_design_direction(self):

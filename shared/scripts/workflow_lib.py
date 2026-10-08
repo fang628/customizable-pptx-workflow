@@ -2080,6 +2080,63 @@ def candidate_style_errors(
     return errors
 
 
+def content_plan_source_index_errors(text, materials):
+    heading = re.search(r"^## 文案与材料原文索引\s*$", text, re.M)
+    if not heading:
+        return ["内容清单缺少《文案与材料原文索引》：先建立文案与材料原文对应关系，再进入设计稿"]
+    section = re.split(r"^## ", text[heading.end():], maxsplit=1, flags=re.M)[0]
+    columns = ("文案编号", "PPT候选文案", "材料ID", "原文定位", "原文摘录", "整理方式")
+    header = None
+    rows = []
+    for line in section.splitlines():
+        if not line.strip().startswith("|"):
+            continue
+        cells = [cell.strip().replace(r"\|", "|")
+                 for cell in re.split(r"(?<!\\)\|", line.strip().strip("|"))]
+        if all(re.fullmatch(r":?-+:?", cell) for cell in cells):
+            continue
+        if header is None:
+            if not all(column in cells for column in columns):
+                return ["文案与材料原文索引缺少必要列：" + "、".join(columns)]
+            header = cells
+        else:
+            rows.append(dict(zip(header, cells)))
+    if not rows:
+        return ["文案与材料原文索引没有文案记录"]
+    known_materials = {material["id"] for material in materials}
+    errors = []
+    indexed = set()
+    for row in rows:
+        identifier = row.get("文案编号", "")
+        if not re.fullmatch(r"CP-\d{3,}", identifier):
+            errors.append("原文索引的文案编号须使用CP-###：" + identifier)
+        indexed.add(identifier)
+        for column in columns:
+            value = row.get(column, "")
+            if not value or "待填写" in value:
+                errors.append(f"{identifier} 的原文索引未填写「{column}」")
+        source = row.get("材料ID", "")
+        if source == "结构文案":
+            if row.get("整理方式") != "结构文案":
+                errors.append(f"{identifier} 无材料原文时，整理方式须明确标为结构文案")
+        else:
+            for source_id in re.split(r"[\s,，、;；]+", source):
+                if source_id and source_id not in known_materials and source_id != "用户说明":
+                    errors.append(f"{identifier} 的原文索引引用未登记材料：{source_id}")
+            for column in ("原文定位", "原文摘录"):
+                if row.get(column) in {"无", "不适用", "—", "-"}:
+                    errors.append(f"{identifier} 有材料来源但缺少有效「{column}」")
+    narrative = text[:heading.start()] + text[heading.end() + len(section):]
+    referenced = set(re.findall(r"(?<![A-Za-z0-9_-])CP-\d{3,}(?![A-Za-z0-9_-])", narrative))
+    if not referenced:
+        errors.append("内容清单正文须用CP-###关联候选文案与原文索引")
+    for identifier in sorted(referenced - indexed):
+        errors.append(f"正文文案 {identifier} 缺少原文索引")
+    for identifier in sorted(indexed - referenced):
+        errors.append(f"原文索引 {identifier} 未在候选文案正文中引用")
+    return list(dict.fromkeys(errors))
+
+
 def content_plan_errors(project):
     """Stage 1.2: selected copy and candidate images, written down in one document."""
     errors = []
@@ -2100,6 +2157,9 @@ def content_plan_errors(project):
     if errors:
         return errors
     text = plan.read_text(encoding="utf-8-sig")
+    errors += content_plan_source_index_errors(
+        text, read_json(project / "01_inventory/materials.json")["materials"]
+    )
     if "##" not in text:
         errors.append(
             "内容清单要用 Markdown 分级：同级文字写在同一层，避免平行结构"

@@ -13,6 +13,7 @@ project/
 |   `-- materials/{reports,papers,photos,promo,brand,data,other}/
 |-- 01_inventory/{material-inventory.md,materials.json}
 |-- 02_design/
+|   |-- content-plan.md
 |   |-- design-spec.md
 |   |-- content.json
 |   |-- claim-map.json
@@ -148,6 +149,8 @@ AI 生图证据链从阶段 1.1 的 `00_intake/ai-image-config.json` 开始。�
 两种元素都必须使用稳定 ID 和正确 `sourceId`：计划生成素材保留 `GEN-###`，局部抠图和新登记的重建素材使用 `RECON-###`。本地预览中的 `svg` 元素在阶段 2.1／2.2 使用 `RECON-###` 作为 `sourceId`，可选 `sourceAssetId: "GEN-###"` 说明它依据哪项 AI 素材重绘。
 
 ## 编号与来源
+
+阶段1.2先完成content-plan.md，按候选文案的 `CP-###` 编号建立《文案与材料原文索引》，记录PPT候选文案、材料ID、原文定位、摘录及整理方式；阶段1.3通过前序闸门后再编写设计稿。初始化空模板不作为已完成设计稿。事实来源由该索引继承到claim-map.json，设计稿可引用索引编号并记录候选文案与最终文字ID的映射，不逐页重复原文。索引的详细写法与检查范围见[内容清单](../stages/12-content/SKILL.md#内容清单)。
 
 - 材料编号：`REPORT-001`、`PAPER-001`、`PHOTO-001`、`PROMO-001`、`BRAND-001`、`DATA-001`、`OTHER-001`。
 - 设计阶段生成素材编号：`GEN-001`、`GEN-002` 等；只有非事实性素材可以生成。阶段 1.2 的候选图按设计方向成组（`styleId` 取 `a`/`b`/`c`，与 `option-a/b/c` 对应）：每个方向各有一套封面大图（`hero-image`）与内容页背景底图（`content-background`），有目录页时各有一张 `toc-image`；致谢页复用 `content-background`，不要求 `thanks-image`（历史候选可保留登记，不能替代背景）。
