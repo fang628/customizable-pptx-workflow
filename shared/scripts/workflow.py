@@ -20,6 +20,7 @@ from workflow_lib import (
 )
 from preview_images import stage_preview_errors
 from dependency_scope import snapshot, difference
+from step_index import validate_checkpoint
 
 
 def portable(project, path):
@@ -182,8 +183,7 @@ def _dispatch(project, args):
         if errors:
             raise ValueError("\n".join(errors))
     elif args.command == "checkpoint":
-        if not args.step.strip():
-            raise ValueError("检查点必须记录实际执行的子步骤")
+        validate_checkpoint(args.stage, args.step)
         state = read_json(project / "workflow-state.json")
         state["updated_at"] = now()
         state["stages"][args.stage]["active_step"] = args.step

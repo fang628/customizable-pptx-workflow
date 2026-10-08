@@ -12,7 +12,7 @@ description: "依据设计稿建立三种不同视觉方向，用 AI 直接按�
 | 子步骤 | 当前任务与详细指令 |
 |---|---|
 | 2.1a | [选择代表页与编写三方向任务](steps/plan.md) |
-| 2.1b | [生成后逐页检查与修订](steps/review.md) |
+| 2.1b | [生成三版代表页、逐页检查与修订](steps/review.md) |
 | 2.1c | [展示代表页并取得方向选择](steps/approve.md) |
 
 本阶段完成后进入[下一阶段](../22-full-preview/SKILL.md)。

@@ -12,6 +12,8 @@
 
 `origin: "reconstruction"` 的 PNG、透明局部抠图和 SVG 来自阶段 3.2，作为独立对象插入，不受 `image-plan.json` 的数量或位置约束。透明抠图设置 `preserveAlpha: true`；外部 SVG 使用独立 `svg` 元素或路径，不能和整页背景合成。两种图片都必须写入 `05_reconstruction/assets.json` 或登记材料来源，并保持对象 ID、`sourceId`、`z` 和元素清单一致。
 
+## 预览图形到原生形状映射
+
 重建时把预览图形翻译成 PptxGenJS 能识别的原生形状。构建规格只能写右列的预设名（`shared/scripts/qa_rules.py` 的 `PREVIEW_TO_NATIVE_SHAPES` 是同一张表的机器可读版本）；写预览侧的名字（`capsule`、`bubble`、`dots`、`split-block`、`v-shape`、`right-pentagon`、`sparkle`、`arrow-*`）会让构建器直接报 `Unknown shape`：
 
 | 预览图形 | 构建规格写法 |
